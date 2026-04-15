@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import PageHeader from '@/components/PageHeader';
 import OrderTable, { Column } from '@/components/OrderTable';
 import StatusBadge, { MoneyCell, DateCell } from '@/components/StatusBadge';
+import PrintTemplate from '@/components/PrintTemplate';
 import { SalesOrder } from '@/lib/types';
 import { SalesOrderRepo } from '@/lib/repo';
 
@@ -158,6 +159,7 @@ export default function SalesOrdersPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Partial<SalesOrder> | undefined>();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [printOrder, setPrintOrder] = useState<SalesOrder | null>(null);
 
   const loadData = async () => {
     setLoading(true);
@@ -291,6 +293,7 @@ export default function SalesOrdersPage() {
             </div>
             <div className="p-3 border-t flex gap-2">
               <button onClick={() => handleEdit(item)} className="flex-1 px-3 py-1.5 text-sm border rounded hover:bg-gray-50">编辑</button>
+              <button onClick={() => setPrintOrder(item)} className="flex-1 px-3 py-1.5 text-sm border rounded hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200">打印</button>
               <button onClick={() => handleDelete(item.id)} className="flex-1 px-3 py-1.5 text-sm border rounded hover:bg-red-50 hover:text-red-600 hover:border-red-200">删除</button>
             </div>
           </div>
@@ -303,6 +306,20 @@ export default function SalesOrdersPage() {
         onSave={handleSave}
         initial={editingItem}
       />
+      {/* 打印弹窗 */}
+      {printOrder && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setPrintOrder(null)}>
+          <div className="bg-white rounded-lg shadow-2xl max-w-3xl overflow-auto max-h-[95vh]" onClick={e => e.stopPropagation()}>
+            <div className="px-5 py-3 border-b flex items-center justify-between bg-gray-50">
+              <h2 className="text-base font-semibold">打印送货单 - {printOrder.单号}</h2>
+              <button onClick={() => setPrintOrder(null)} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
+            </div>
+            <div className="p-4">
+              <PrintTemplate order={printOrder} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
