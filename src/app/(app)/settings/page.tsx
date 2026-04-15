@@ -1,7 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import PageHeader from '@/components/PageHeader';
+import { resetAllData } from '@/lib/localData';
+import { getItem, STORAGE_KEYS } from '@/lib/storage';
 
 const settingsGroups = [
   {
@@ -14,10 +16,18 @@ const settingsGroups = [
     ],
   },
   {
-    title: '系统设置',
+    title: '数据存储',
     items: [
-      { label: '数据存储模式', value: '模拟数据模式 (USE_MOCK_DATA=true)', type: 'info' },
-      { label: '飞书Bitable', value: '已连接', type: 'info' },
+      { label: '存储模式', value: '浏览器本地存储 (localStorage)', type: 'info' },
+      { label: '数据持久化', value: '✅ 已启用（刷新页面不丢失）', type: 'success' },
+      { label: '最后同步', value: '—', type: 'info', key: 'lastSync' },
+    ],
+  },
+  {
+    title: '飞书集成',
+    items: [
+      { label: '飞书Bitable读取', value: '✅ 正常', type: 'success' },
+      { label: '飞书Bitable写入', value: '⚠️ 需开通写入权限', type: 'warning' },
       { label: '飞书App ID', value: 'cli_a942474699f85cc1', type: 'info' },
       { label: '基础数据Bitable', value: 'EUyCb0aIcavugUsXJaocRtR6n6b', type: 'info' },
       { label: '订单数据Bitable', value: 'GVgUbTjubaI5m1suvcgctyPOnFc', type: 'info' },
@@ -35,6 +45,19 @@ const settingsGroups = [
 
 export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
+  const [lastSync, setLastSync] = useState<string>('');
+
+  useEffect(() => {
+    const stored = getItem<string>(STORAGE_KEYS.lastSync, '');
+    setLastSync(stored);
+  }, []);
+
+  const handleResetData = () => {
+    if (!confirm('确定重置所有数据？此操作不可恢复！\n\n将清除所有本地数据并恢复为秒账默认数据。')) return;
+    resetAllData();
+    setLastSync(new Date().toISOString());
+    alert('数据已重置为默认数据，请刷新页面查看。');
+  };
 
   return (
     <div className="flex flex-col h-full">
@@ -48,35 +71,66 @@ export default function SettingsPage() {
                 <h3 className="font-semibold text-sm text-gray-800">{group.title}</h3>
               </div>
               <div className="divide-y">
-                {group.items.map(item => (
-                  <div key={item.label} className="flex items-center px-5 py-3">
-                    <div className="w-40 text-sm text-gray-600 flex-shrink-0">{item.label}</div>
-                    <div className="flex-1">
-                      {item.type === 'text' ? (
-                        <input
-                          type="text"
-                          defaultValue={item.value}
-                          className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
-                        />
-                      ) : (
-                        <span className={`text-sm ${item.label.includes('Bitable') || item.label.includes('App') ? 'font-mono text-gray-500' : 'text-gray-800'}`}>
-                          {item.value}
-                        </span>
-                      )}
+                {group.items.map(item => {
+                  let displayValue = item.value;
+                  if (item.key === 'lastSync' && lastSync) {
+                    displayValue = new Date(lastSync).toLocaleString('zh-CN');
+                  }
+                  return (
+                    <div key={item.label} className="flex items-center px-5 py-3">
+                      <div className="w-40 text-sm text-gray-600 flex-shrink-0">{item.label}</div>
+                      <div className="flex-1">
+                        {item.type === 'text' ? (
+                          <input
+                            type="text"
+                            defaultValue={item.value}
+                            className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
+                          />
+                        ) : (
+                          <span className={`text-sm ${
+                            item.type === 'success' ? 'text-green-600 font-medium' :
+                            item.type === 'warning' ? 'text-orange-600 font-medium' :
+                            item.label.includes('App ID') || item.label.includes('Bitable') ? 'font-mono text-gray-500' :
+                            'text-gray-800'
+                          }`}>
+                            {displayValue}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           ))}
 
+          {/* 数据管理 */}
+          <div className="bg-white rounded-lg shadow-sm border">
+            <div className="px-5 py-3 border-b bg-gray-50 rounded-t-lg">
+              <h3 className="font-semibold text-sm text-gray-800">数据管理</h3>
+            </div>
+            <div className="p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm font-medium text-gray-800">重置为默认数据</div>
+                  <div className="text-xs text-gray-500 mt-0.5">清除所有本地数据，恢复为秒账初始数据</div>
+                </div>
+                <button
+                  onClick={handleResetData}
+                  className="px-4 py-2 text-sm border border-red-200 text-red-600 rounded hover:bg-red-50">
+                  重置数据
+                </button>
+              </div>
+            </div>
+          </div>
+
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-xs text-blue-700">
             <div className="font-semibold mb-1">💡 提示</div>
             <ul className="list-disc list-inside space-y-0.5">
-              <li>当前为本地开发模式，数据存储在浏览器内存中</li>
-              <li>切换到真实飞书Bitable需要配置写入权限</li>
-              <li>部分设置修改后需要刷新页面生效</li>
-              <li>正式环境建议使用环境变量配置敏感信息</li>
+              <li>当前数据保存在浏览器localStorage中，<strong>刷新页面不会丢失</strong></li>
+              <li>切换浏览器或清除缓存将丢失数据</li>
+              <li>开通飞书Bitable写入权限后，可实现云端同步</li>
+              <li>如需导出数据，可使用各页面的&quot;导出CSV&quot;功能</li>
             </ul>
           </div>
 
