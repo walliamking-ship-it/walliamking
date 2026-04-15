@@ -36,12 +36,12 @@ export const mockMaterials: Material[] = [
 
 // 产品模拟数据
 export const mockProducts: Product[] = [
-  { id: '1', code: 'P001', name: '运动鞋吊牌', spec: '10*15cm', customer: '李宁体育', sheetSize: 16, remark: '' },
-  { id: '2', code: 'P002', name: 'T恤吊牌', spec: '8*12cm', customer: '安踏集团', sheetSize: 24, remark: '' },
-  { id: '3', code: 'P003', name: '运动服纸盒', spec: '20*30*5cm', customer: '特步国际', sheetSize: 8, remark: '' },
-  { id: '4', code: 'P004', name: '鞋盒', spec: '25*35*10cm', customer: '361度', sheetSize: 4, remark: '' },
-  { id: '5', code: 'P005', name: '配件纸盒', spec: '15*20*3cm', customer: '鸿星尔克', sheetSize: 12, remark: '' },
-  { id: '6', code: 'P006', name: '促销吊牌', spec: '12*18cm', customer: '李宁体育', sheetSize: 16, remark: '促销专用' },
+  { id: '1', code: 'C01HT0001', name: 'GWEST 白底黑字吊牌', spec: '350g双层对裱', unit: '个', category: '吊牌', customer: 'C01-天一纺织', purchasePrice: 0.18, salePrice: 0.23, remark: 'LOGO突出,黑底白字' },
+  { id: '2', code: 'C01WO0001', name: 'GWEST 织标', spec: '标准', unit: '个', category: '织标', customer: 'C01-天一纺织', purchasePrice: 0.12, salePrice: 0.28, remark: '' },
+  { id: '3', code: 'C01WA0001', name: 'GWEST 洗标', spec: '70*28mm', unit: '个', category: '洗标', customer: 'C01-天一纺织', purchasePrice: 0.035, salePrice: 0.09, remark: '' },
+  { id: '4', code: 'C01PB0001', name: 'GWEST 塑料袋', spec: '15丝,透明PE150+磨砂PE150', unit: '个', category: '包装袋', customer: 'C01-天一纺织', purchasePrice: 1.1, salePrice: 0.86, remark: '' },
+  { id: '5', code: 'C05HT0001', name: '康宝莱短袖吊牌1', spec: '110*36mm', unit: '个', category: '吊牌', customer: 'C05-白领仕', purchasePrice: 0.06, salePrice: 0.07, remark: '' },
+  { id: '6', code: 'C12HT0036', name: 'KESTOS吊牌', spec: '标准', unit: '个', category: '吊牌', customer: 'C12-NEIWAI', purchasePrice: 0, salePrice: 0.25, remark: '<10000单价：0.25' },
 ];
 
 // 工艺模拟数据

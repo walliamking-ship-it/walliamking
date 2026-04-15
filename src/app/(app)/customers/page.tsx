@@ -1,102 +1,174 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { CrudTable, Column } from '@/components/CrudTable';
+import PageHeader from '@/components/PageHeader';
+import OrderTable, { Column } from '@/components/OrderTable';
 import { Customer } from '@/lib/types';
 import { CustomerRepo } from '@/lib/repo';
 
 const columns: Column<Customer>[] = [
-  { key: 'code', label: '客户编号' },
-  { key: 'name', label: '客户名称' },
+  { key: 'code', label: '客户编号', sortable: true },
+  { key: 'name', label: '客户名称', sortable: true },
   { key: 'contact', label: '联系人' },
   { key: 'phone', label: '电话' },
   { key: 'address', label: '地址' },
   { key: 'remark', label: '备注' },
-  { key: 'actions', label: '操作' },
 ];
-
-const exportHeaders = [
-  { key: 'code' as keyof Customer, label: '客户编号' },
-  { key: 'name' as keyof Customer, label: '客户名称' },
-  { key: 'contact' as keyof Customer, label: '联系人' },
-  { key: 'phone' as keyof Customer, label: '电话' },
-  { key: 'address' as keyof Customer, label: '地址' },
-  { key: 'remark' as keyof Customer, label: '备注' },
-];
-
-const searchKeys: (keyof Customer)[] = ['code', 'name', 'contact', 'phone', 'address', 'remark'];
 
 function CustomerForm({ value, onChange }: { value: Partial<Customer>; onChange: (key: keyof Customer, v: any) => void }) {
   return (
-    <>
+    <div className="grid grid-cols-2 gap-3">
       <div>
-        <label className="block text-sm text-gray-600 mb-1">客户编号 <span className="text-red-500">*</span></label>
+        <label className="block text-xs text-gray-500 mb-0.5">客户编号 <span className="text-red-500">*</span></label>
         <input type="text" value={value.code || ''} onChange={e => onChange('code', e.target.value)}
-          className="w-full border rounded px-3 py-2 text-sm" placeholder="如: C001" required />
+          className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" placeholder="如: C01" required />
       </div>
       <div>
-        <label className="block text-sm text-gray-600 mb-1">客户名称</label>
+        <label className="block text-xs text-gray-500 mb-0.5">客户名称 <span className="text-red-500">*</span></label>
         <input type="text" value={value.name || ''} onChange={e => onChange('name', e.target.value)}
-          className="w-full border rounded px-3 py-2 text-sm" placeholder="如: 李宁体育" />
+          className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" placeholder="客户全称" required />
       </div>
       <div>
-        <label className="block text-sm text-gray-600 mb-1">联系人</label>
+        <label className="block text-xs text-gray-500 mb-0.5">联系人</label>
         <input type="text" value={value.contact || ''} onChange={e => onChange('contact', e.target.value)}
-          className="w-full border rounded px-3 py-2 text-sm" placeholder="如: 张经理" />
+          className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" placeholder="联系人姓名" />
       </div>
       <div>
-        <label className="block text-sm text-gray-600 mb-1">电话</label>
+        <label className="block text-xs text-gray-500 mb-0.5">电话</label>
         <input type="text" value={value.phone || ''} onChange={e => onChange('phone', e.target.value)}
-          className="w-full border rounded px-3 py-2 text-sm" placeholder="如: 13800138001" />
+          className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" placeholder="电话/手机" />
       </div>
-      <div>
-        <label className="block text-sm text-gray-600 mb-1">地址</label>
+      <div className="col-span-2">
+        <label className="block text-xs text-gray-500 mb-0.5">地址</label>
         <input type="text" value={value.address || ''} onChange={e => onChange('address', e.target.value)}
-          className="w-full border rounded px-3 py-2 text-sm" placeholder="如: 北京朝阳区" />
+          className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" placeholder="详细地址" />
       </div>
-      <div>
-        <label className="block text-sm text-gray-600 mb-1">备注</label>
-        <input type="text" value={value.remark || ''} onChange={e => onChange('remark', e.target.value)}
-          className="w-full border rounded px-3 py-2 text-sm" />
+      <div className="col-span-2">
+        <label className="block text-xs text-gray-500 mb-0.5">备注</label>
+        <textarea value={value.remark || ''} onChange={e => onChange('remark', e.target.value)}
+          className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" rows={2} placeholder="备注信息" />
       </div>
-    </>
+    </div>
+  );
+}
+
+function FormModal({ open, onClose, onSave, initial }: {
+  open: boolean;
+  onClose: () => void;
+  onSave: (item: Partial<Customer>) => void;
+  initial?: Partial<Customer>;
+}) {
+  const [form, setForm] = useState<Partial<Customer>>(initial || {});
+
+  useEffect(() => { setForm(initial || {}); }, [initial, open]);
+
+  if (!open) return null;
+
+  const handleSave = () => {
+    if (!form.code || !form.name) { alert('请填写客户编号和客户名称'); return; }
+    onSave(form);
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-xl max-h-[90vh] overflow-auto">
+        <div className="px-5 py-3 border-b flex items-center justify-between">
+          <h2 className="text-base font-semibold">{initial?.id ? '编辑客户' : '新建客户'}</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
+        </div>
+        <div className="p-5">
+          <CustomerForm value={form} onChange={(k, v) => setForm(f => ({ ...f, [k]: v }))} />
+        </div>
+        <div className="px-5 py-3 border-t flex justify-end gap-2 bg-gray-50">
+          <button onClick={onClose} className="px-4 py-1.5 text-sm border rounded hover:bg-gray-100">取消</button>
+          <button onClick={handleSave} className="px-4 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">保存</button>
+        </div>
+      </div>
+    </div>
   );
 }
 
 export default function CustomersPage() {
   const [data, setData] = useState<Customer[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<Partial<Customer> | undefined>();
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  useEffect(() => {
-    CustomerRepo.findAll().then(setData);
-  }, []);
-
-  const handleAdd = async (item: Omit<Customer, 'id'>) => {
-    await CustomerRepo.create(item);
-    setData(await CustomerRepo.findAll());
+  const loadData = async () => {
+    setLoading(true);
+    try { setData(await CustomerRepo.findAll()); }
+    finally { setLoading(false); }
   };
 
-  const handleEdit = async (id: string, item: Partial<Customer>) => {
-    await CustomerRepo.update(id, item);
-    setData(await CustomerRepo.findAll());
+  useEffect(() => { loadData(); }, []);
+
+  const filtered = data.filter(item => {
+    const q = search.toLowerCase();
+    return !q || [item.code, item.name, item.contact, item.phone, item.address, item.remark]
+      .some(v => v?.toLowerCase().includes(q));
+  });
+
+  const handleSave = async (form: Partial<Customer>) => {
+    if (editingItem?.id) await CustomerRepo.update(editingItem.id, form);
+    else await CustomerRepo.create(form as Omit<Customer, 'id'>);
+    await loadData();
+    setEditingItem(undefined);
   };
 
+  const handleEdit = (item: Customer) => { setEditingItem(item); setModalOpen(true); };
   const handleDelete = async (id: string) => {
+    if (!confirm('确定删除该客户？')) return;
     await CustomerRepo.delete(id);
-    setData(await CustomerRepo.findAll());
+    await loadData();
   };
+
+  const tableColumns: Column<Customer>[] = [
+    ...columns,
+    {
+      key: 'actions', label: '操作',
+      render: (item) => (
+        <div className="flex gap-1">
+          <button onClick={(e) => { e.stopPropagation(); handleEdit(item); }}
+            className="px-2 py-0.5 text-xs border rounded hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600">编辑</button>
+          <button onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}
+            className="px-2 py-0.5 text-xs border rounded hover:bg-red-50 hover:border-red-300 hover:text-red-600">删除</button>
+        </div>
+      ),
+    },
+  ];
 
   return (
-    <CrudTable
-      title="客户管理"
-      columns={columns}
-      data={data}
-      onAdd={handleAdd}
-      onEdit={handleEdit}
-      onDelete={handleDelete}
-      formFields={CustomerForm}
-      emptyMessage="暂无客户数据"
-      searchKeys={searchKeys}
-      exportHeaders={exportHeaders}
-    />
+    <div className="flex flex-col h-full">
+      <PageHeader
+        title="客户管理"
+        searchPlaceholder="搜索 编号 / 名称 / 联系人 / 电话 / 地址 / 备注..."
+        onSearch={setSearch}
+        actions={[
+          { label: '新建客户', icon: '＋', variant: 'primary' as const, onClick: () => { setEditingItem({}); setModalOpen(true); } },
+          { label: '批量操作', onClick: () => alert('批量操作功能开发中') },
+        ]}
+      />
+
+      <div className="flex-1 overflow-auto bg-white">
+        <OrderTable
+          columns={tableColumns}
+          data={filtered}
+          loading={loading}
+          emptyMessage="暂无客户数据"
+          onRowClick={item => setSelectedId(selectedId === item.id ? null : item.id)}
+          renderOrderNumber={item => <span className="text-blue-600 font-mono text-xs hover:underline">{item.code}</span>}
+        />
+      </div>
+
+      <FormModal
+        open={modalOpen}
+        onClose={() => { setModalOpen(false); setEditingItem(undefined); }}
+        onSave={handleSave}
+        initial={editingItem}
+      />
+    </div>
   );
 }

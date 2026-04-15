@@ -4,35 +4,41 @@ import { useState, useEffect } from 'react';
 import PageHeader from '@/components/PageHeader';
 import OrderTable, { Column } from '@/components/OrderTable';
 import StatusBadge, { MoneyCell, DateCell } from '@/components/StatusBadge';
-import { PurchaseOrder } from '@/lib/types';
-import { PurchaseOrderRepo } from '@/lib/repo';
+import { ProcessingOrder } from '@/lib/types';
+import { ProcessingOrderRepo } from '@/lib/repo';
 
-const columns: Column<PurchaseOrder>[] = [
+const columns: Column<ProcessingOrder>[] = [
   { key: '单号', label: '单号', sortable: true },
-  { key: '供应商名称', label: '供应商名称', sortable: true },
+  { key: '加工公司', label: '加工公司', sortable: true },
+  { key: '加工工序', label: '加工工序' },
   { key: '日期', label: '日期', sortable: true },
-  { key: '合同金额', label: '合同金额', sortable: true },
-  { key: '已收货', label: '已收货', sortable: true },
-  { key: '未付款', label: '未付款', sortable: true },
-  { key: '已付款', label: '已付款', sortable: true },
+  { key: '实际应付', label: '实际应付', sortable: true },
+  { key: '已收货', label: '已收货' },
+  { key: '未付款', label: '未付款' },
+  { key: '已付款', label: '已付款' },
   { key: '付款状态', label: '付款状态', sortable: true },
   { key: '收货状态', label: '收货状态', sortable: true },
   { key: '制单人', label: '制单人' },
   { key: '备注', label: '备注' },
 ];
 
-function PurchaseOrderForm({ value, onChange }: { value: Partial<PurchaseOrder>; onChange: (key: keyof PurchaseOrder, v: any) => void }) {
+function ProcessingOrderForm({ value, onChange }: { value: Partial<ProcessingOrder>; onChange: (key: keyof ProcessingOrder, v: any) => void }) {
   return (
     <div className="grid grid-cols-2 gap-3">
       <div>
         <label className="block text-xs text-gray-500 mb-0.5">单号 <span className="text-red-500">*</span></label>
         <input type="text" value={value.单号 || ''} onChange={e => onChange('单号', e.target.value)}
-          className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" placeholder="CG+日期+序号" required />
+          className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" placeholder="JG+日期+序号" required />
       </div>
       <div>
-        <label className="block text-xs text-gray-500 mb-0.5">供应商名称 <span className="text-red-500">*</span></label>
-        <input type="text" value={value.供应商名称 || ''} onChange={e => onChange('供应商名称', e.target.value)}
-          className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" placeholder="S01-供应商名" required />
+        <label className="block text-xs text-gray-500 mb-0.5">加工公司 <span className="text-red-500">*</span></label>
+        <input type="text" value={value.加工公司 || ''} onChange={e => onChange('加工公司', e.target.value)}
+          className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" placeholder="加工公司名称" required />
+      </div>
+      <div>
+        <label className="block text-xs text-gray-500 mb-0.5">加工工序</label>
+        <input type="text" value={value.加工工序 || ''} onChange={e => onChange('加工工序', e.target.value)}
+          className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" placeholder="工序名称" />
       </div>
       <div>
         <label className="block text-xs text-gray-500 mb-0.5">日期</label>
@@ -40,13 +46,13 @@ function PurchaseOrderForm({ value, onChange }: { value: Partial<PurchaseOrder>;
           className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" />
       </div>
       <div>
-        <label className="block text-xs text-gray-500 mb-0.5">计划付款日期</label>
-        <input type="date" value={value.计划付款日期 || ''} onChange={e => onChange('计划付款日期', e.target.value)}
+        <label className="block text-xs text-gray-500 mb-0.5">计划入库日期</label>
+        <input type="date" value={value.计划入库日期 || ''} onChange={e => onChange('计划入库日期', e.target.value)}
           className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" />
       </div>
       <div>
-        <label className="block text-xs text-gray-500 mb-0.5">合同金额</label>
-        <input type="number" step="0.01" value={value.合同金额 ?? ''} onChange={e => onChange('合同金额', parseFloat(e.target.value) || 0)}
+        <label className="block text-xs text-gray-500 mb-0.5">实际应付</label>
+        <input type="number" step="0.01" value={value.实际应付 ?? ''} onChange={e => onChange('实际应付', parseFloat(e.target.value) || 0)}
           className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" placeholder="0.00" />
       </div>
       <div>
@@ -90,9 +96,9 @@ function PurchaseOrderForm({ value, onChange }: { value: Partial<PurchaseOrder>;
           className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" placeholder="业务员" />
       </div>
       <div className="col-span-2">
-        <label className="block text-xs text-gray-500 mb-0.5">收货地址</label>
-        <input type="text" value={value.收货地址 || ''} onChange={e => onChange('收货地址', e.target.value)}
-          className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" placeholder="收货地址" />
+        <label className="block text-xs text-gray-500 mb-0.5">加工地址</label>
+        <input type="text" value={value.加工地址 || ''} onChange={e => onChange('加工地址', e.target.value)}
+          className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" placeholder="加工地址" />
       </div>
       <div className="col-span-2">
         <label className="block text-xs text-gray-500 mb-0.5">备注</label>
@@ -103,13 +109,13 @@ function PurchaseOrderForm({ value, onChange }: { value: Partial<PurchaseOrder>;
   );
 }
 
-function FormModal({ open, onClose, onSave, initial }: { open: boolean; onClose: () => void; onSave: (item: Partial<PurchaseOrder>) => void; initial?: Partial<PurchaseOrder>; }) {
-  const [form, setForm] = useState<Partial<PurchaseOrder>>(initial || {});
+function FormModal({ open, onClose, onSave, initial }: { open: boolean; onClose: () => void; onSave: (item: Partial<ProcessingOrder>) => void; initial?: Partial<ProcessingOrder>; }) {
+  const [form, setForm] = useState<Partial<ProcessingOrder>>(initial || {});
   useEffect(() => { setForm(initial || {}); }, [initial, open]);
   if (!open) return null;
 
   const handleSave = () => {
-    if (!form.单号 || !form.供应商名称) { alert('请填写单号和供应商名称'); return; }
+    if (!form.单号 || !form.加工公司) { alert('请填写单号和加工公司'); return; }
     onSave(form);
     onClose();
   };
@@ -118,10 +124,10 @@ function FormModal({ open, onClose, onSave, initial }: { open: boolean; onClose:
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-auto">
         <div className="px-5 py-3 border-b flex items-center justify-between">
-          <h2 className="text-base font-semibold">{initial?.id ? '编辑采购订单' : '新建采购订单'}</h2>
+          <h2 className="text-base font-semibold">{initial?.id ? '编辑加工单' : '新建加工单'}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
         </div>
-        <div className="p-5"><PurchaseOrderForm value={form} onChange={(k, v) => setForm(f => ({ ...f, [k]: v }))} /></div>
+        <div className="p-5"><ProcessingOrderForm value={form} onChange={(k, v) => setForm(f => ({ ...f, [k]: v }))} /></div>
         <div className="px-5 py-3 border-t flex justify-end gap-2 bg-gray-50">
           <button onClick={onClose} className="px-4 py-1.5 text-sm border rounded hover:bg-gray-100">取消</button>
           <button onClick={handleSave} className="px-4 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">保存</button>
@@ -131,32 +137,32 @@ function FormModal({ open, onClose, onSave, initial }: { open: boolean; onClose:
   );
 }
 
-export default function PurchaseOrdersPage() {
-  const [data, setData] = useState<PurchaseOrder[]>([]);
+export default function ProcessingOrdersPage() {
+  const [data, setData] = useState<ProcessingOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<Partial<PurchaseOrder> | undefined>();
+  const [editingItem, setEditingItem] = useState<Partial<ProcessingOrder> | undefined>();
 
-  const loadData = async () => { setLoading(true); try { setData(await PurchaseOrderRepo.findAll()); } finally { setLoading(false); } };
+  const loadData = async () => { setLoading(true); try { setData(await ProcessingOrderRepo.findAll()); } finally { setLoading(false); } };
   useEffect(() => { loadData(); }, []);
 
   const filtered = data.filter(item => {
     const q = search.toLowerCase();
-    return !q || [item.单号, item.供应商名称, item.制单人, item.业务员, item.备注].some(v => v?.toLowerCase().includes(q));
+    return !q || [item.单号, item.加工公司, item.加工工序, item.制单人, item.业务员, item.备注].some(v => v?.toLowerCase().includes(q));
   });
 
-  const handleSave = async (form: Partial<PurchaseOrder>) => {
-    if (editingItem?.id) await PurchaseOrderRepo.update(editingItem.id, form);
-    else await PurchaseOrderRepo.create(form as Omit<PurchaseOrder, 'id'>);
+  const handleSave = async (form: Partial<ProcessingOrder>) => {
+    if (editingItem?.id) await ProcessingOrderRepo.update(editingItem.id, form);
+    else await ProcessingOrderRepo.create(form as Omit<ProcessingOrder, 'id'>);
     await loadData();
     setEditingItem(undefined);
   };
 
-  const handleEdit = (item: PurchaseOrder) => { setEditingItem(item); setModalOpen(true); };
-  const handleDelete = async (id: string) => { if (!confirm('确定删除该采购订单？')) return; await PurchaseOrderRepo.delete(id); await loadData(); };
+  const handleEdit = (item: ProcessingOrder) => { setEditingItem(item); setModalOpen(true); };
+  const handleDelete = async (id: string) => { if (!confirm('确定删除该加工单？')) return; await ProcessingOrderRepo.delete(id); await loadData(); };
 
-  const tableColumns: Column<PurchaseOrder>[] = [
+  const tableColumns: Column<ProcessingOrder>[] = [
     ...columns,
     { key: 'actions', label: '操作', render: (item) => (
       <div className="flex gap-1">
@@ -168,10 +174,10 @@ export default function PurchaseOrdersPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <PageHeader title="采购订单" searchPlaceholder="搜索 单号 / 供应商名称 / 制单人 / 业务员 / 备注..." onSearch={setSearch}
-        actions={[{ label: '新建采购单', icon: '＋', variant: 'primary' as const, onClick: () => { setEditingItem({}); setModalOpen(true); } }, { label: '批量操作', onClick: () => alert('批量操作功能开发中') }]} />
+      <PageHeader title="加工单" searchPlaceholder="搜索 单号 / 加工公司 / 工序 / 制单人 / 业务员 / 备注..." onSearch={setSearch}
+        actions={[{ label: '新建加工单', icon: '＋', variant: 'primary' as const, onClick: () => { setEditingItem({}); setModalOpen(true); } }, { label: '批量操作', onClick: () => alert('批量操作功能开发中') }]} />
       <div className="flex-1 overflow-auto bg-white">
-        <OrderTable columns={tableColumns} data={filtered} loading={loading} emptyMessage="暂无采购订单"
+        <OrderTable columns={tableColumns} data={filtered} loading={loading} emptyMessage="暂无加工单"
           onRowClick={item => handleEdit(item)}
           renderOrderNumber={item => <span className="text-blue-600 font-mono text-xs hover:underline">{item.单号}</span>} />
       </div>

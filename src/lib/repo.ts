@@ -2,7 +2,7 @@
  * 数据仓储层 - 前端直连飞书Bitable API
  */
 
-import { Customer, Vendor, Material, Product, Process, Workstation, SalesOrder, PurchaseOrder, Inventory } from './types';
+import { Customer, Vendor, Material, Product, Process, Workstation, SalesOrder, PurchaseOrder, Inventory, ProcessingOrder } from './types';
 import { DataService, TABLE_IDS } from './api';
 
 // ========== 客户 ==========
@@ -317,5 +317,40 @@ export const InventoryRepo = {
 
   async delete(id: string): Promise<boolean> {
     return await DataService.delete(TABLE_IDS.inventory, id);
+  },
+};
+
+// ========== 加工单 ==========
+export const ProcessingOrderRepo = {
+  async findAll(): Promise<ProcessingOrder[]> {
+    return await DataService.list(TABLE_IDS.processingOrders) as ProcessingOrder[];
+  },
+
+  async findById(id: string): Promise<ProcessingOrder | undefined> {
+    const all = await this.findAll();
+    return all.find(p => p.id === id);
+  },
+
+  async create(data: Omit<ProcessingOrder, 'id'>): Promise<ProcessingOrder> {
+    const all = await this.findAll();
+    if (all.find(p => p.单号 === data.单号)) {
+      throw new Error(`加工单号 "${data.单号}" 已存在`);
+    }
+    await DataService.create(TABLE_IDS.processingOrders, data);
+    const updated = await this.findAll();
+    return updated[updated.length - 1];
+  },
+
+  async update(id: string, data: Partial<ProcessingOrder>): Promise<ProcessingOrder | undefined> {
+    const all = await this.findAll();
+    if (all.find(p => p.id !== id && data.单号 && p.单号 === data.单号)) {
+      throw new Error(`加工单号 "${data.单号}" 已存在`);
+    }
+    await DataService.update(TABLE_IDS.processingOrders, id, data);
+    return await this.findById(id);
+  },
+
+  async delete(id: string): Promise<boolean> {
+    return await DataService.delete(TABLE_IDS.processingOrders, id);
   },
 };
