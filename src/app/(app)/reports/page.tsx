@@ -3,12 +3,12 @@
 import PageHeader from '@/components/PageHeader';
 
 const reportModules = [
-  { label: '销售流水表', desc: '按日期查看所有销售出库记录', icon: '📋', href: '/sales-orders' },
-  { label: '采购流水表', desc: '按日期查看所有采购入库记录', icon: '📦', href: '/purchase-orders' },
-  { label: '送货提醒表', desc: '即将到期或逾期的送货计划', icon: '🚚', href: '/sales-orders' },
-  { label: '收款欠款汇总', desc: '客户应收款汇总与账龄分析', icon: '💰', href: '/sales-orders' },
-  { label: '库存报表', desc: '各仓库库存数量与金额汇总', icon: '📊', href: '/inventory' },
-  { label: '产品销售总览', desc: '各产品销售数量与金额统计', icon: '🏷️', href: '/products' },
+  { label: '销售流水表', desc: '按日期查看所有销售出库记录', icon: '📋', href: '/reports/sales-flow', color: 'blue' },
+  { label: '收款欠款汇总', desc: '客户应收款汇总与账龄分析', icon: '💰', href: '/reports/ar-summary', color: 'red' },
+  { label: '采购流水表', desc: '按日期查看所有采购入库记录', icon: '📦', href: '/purchase-orders', color: 'green' },
+  { label: '送货提醒表', desc: '即将到期或逾期的送货计划', icon: '🚚', href: '/sales-orders', color: 'yellow' },
+  { label: '库存报表', desc: '各仓库库存数量与金额汇总', icon: '📊', href: '/inventory', color: 'purple' },
+  { label: '产品销售总览', desc: '各产品销售数量与金额统计', icon: '🏷️', href: '/products', color: 'gray' },
 ];
 
 export default function ReportsPage() {
@@ -24,7 +24,7 @@ export default function ReportsPage() {
               <div className="font-semibold text-gray-800">{report.label}</div>
               <div className="text-sm text-gray-500 mt-1">{report.desc}</div>
               <div className="mt-3">
-                <a href={report.href} className="text-xs text-blue-600 hover:underline">进入报表 →</a>
+                <a href={report.href} className="text-xs text-blue-600 hover:underline font-medium">进入报表 →</a>
               </div>
             </div>
           ))}
