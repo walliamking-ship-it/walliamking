@@ -1,20 +1,14 @@
 /**
- * 数据仓储层 - 调用本地API路由
- * 路由代理飞书Bitable API，避免跨域问题
+ * 数据仓储层 - 前端直连飞书Bitable API
  */
 
-import {
-  Customer, Vendor, Material, Product, Process, Workstation
-} from './types';
-
-const BASE = '';
+import { Customer, Vendor, Material, Product, Process, Workstation } from './types';
+import { DataService, TABLE_IDS } from './api';
 
 // ========== 客户 ==========
 export const CustomerRepo = {
   async findAll(): Promise<Customer[]> {
-    const res = await fetch(`${BASE}/api/customers`);
-    const d = await res.json();
-    return d.code === 0 ? d.data : [];
+    return await DataService.list(TABLE_IDS.customers) as Customer[];
   },
 
   async findById(id: string): Promise<Customer | undefined> {
@@ -27,14 +21,9 @@ export const CustomerRepo = {
     if (all.find(c => c.code === data.code)) {
       throw new Error(`客户编号 "${data.code}" 已存在`);
     }
-    const res = await fetch(`${BASE}/api/customers`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-    const d = await res.json();
-    if (d.code !== 0) throw new Error(d.msg || 'create failed');
-    return d.data;
+    await DataService.create(TABLE_IDS.customers, data);
+    const updated = await this.findAll();
+    return updated[updated.length - 1];
   },
 
   async update(id: string, data: Partial<Customer>): Promise<Customer | undefined> {
@@ -42,29 +31,19 @@ export const CustomerRepo = {
     if (all.find(c => c.id !== id && data.code && c.code === data.code)) {
       throw new Error(`客户编号 "${data.code}" 已存在`);
     }
-    const res = await fetch(`${BASE}/api/customers`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, ...data })
-    });
-    const d = await res.json();
-    if (d.code !== 0) throw new Error(d.msg || 'update failed');
-    return d.data;
+    await DataService.update(TABLE_IDS.customers, id, data);
+    return await this.findById(id);
   },
 
   async delete(id: string): Promise<boolean> {
-    const res = await fetch(`${BASE}/api/customers?id=${id}`, { method: 'DELETE' });
-    const d = await res.json();
-    return d.code === 0;
+    return await DataService.delete(TABLE_IDS.customers, id);
   },
 };
 
 // ========== 供应商 ==========
 export const VendorRepo = {
   async findAll(): Promise<Vendor[]> {
-    const res = await fetch(`${BASE}/api/vendors`);
-    const d = await res.json();
-    return d.code === 0 ? d.data : [];
+    return await DataService.list(TABLE_IDS.vendors) as Vendor[];
   },
 
   async findById(id: string): Promise<Vendor | undefined> {
@@ -77,14 +56,9 @@ export const VendorRepo = {
     if (all.find(v => v.code === data.code)) {
       throw new Error(`供应商编号 "${data.code}" 已存在`);
     }
-    const res = await fetch(`${BASE}/api/vendors`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-    const d = await res.json();
-    if (d.code !== 0) throw new Error(d.msg || 'create failed');
-    return d.data;
+    await DataService.create(TABLE_IDS.vendors, data);
+    const updated = await this.findAll();
+    return updated[updated.length - 1];
   },
 
   async update(id: string, data: Partial<Vendor>): Promise<Vendor | undefined> {
@@ -92,29 +66,19 @@ export const VendorRepo = {
     if (all.find(v => v.id !== id && data.code && v.code === data.code)) {
       throw new Error(`供应商编号 "${data.code}" 已存在`);
     }
-    const res = await fetch(`${BASE}/api/vendors`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, ...data })
-    });
-    const d = await res.json();
-    if (d.code !== 0) throw new Error(d.msg || 'update failed');
-    return d.data;
+    await DataService.update(TABLE_IDS.vendors, id, data);
+    return await this.findById(id);
   },
 
   async delete(id: string): Promise<boolean> {
-    const res = await fetch(`${BASE}/api/vendors?id=${id}`, { method: 'DELETE' });
-    const d = await res.json();
-    return d.code === 0;
+    return await DataService.delete(TABLE_IDS.vendors, id);
   },
 };
 
 // ========== 物料 ==========
 export const MaterialRepo = {
   async findAll(): Promise<Material[]> {
-    const res = await fetch(`${BASE}/api/materials`);
-    const d = await res.json();
-    return d.code === 0 ? d.data : [];
+    return await DataService.list(TABLE_IDS.materials) as Material[];
   },
 
   async findById(id: string): Promise<Material | undefined> {
@@ -127,14 +91,9 @@ export const MaterialRepo = {
     if (all.find(m => m.code === data.code)) {
       throw new Error(`物料编号 "${data.code}" 已存在`);
     }
-    const res = await fetch(`${BASE}/api/materials`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-    const d = await res.json();
-    if (d.code !== 0) throw new Error(d.msg || 'create failed');
-    return d.data;
+    await DataService.create(TABLE_IDS.materials, data);
+    const updated = await this.findAll();
+    return updated[updated.length - 1];
   },
 
   async update(id: string, data: Partial<Material>): Promise<Material | undefined> {
@@ -142,29 +101,19 @@ export const MaterialRepo = {
     if (all.find(m => m.id !== id && data.code && m.code === data.code)) {
       throw new Error(`物料编号 "${data.code}" 已存在`);
     }
-    const res = await fetch(`${BASE}/api/materials`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, ...data })
-    });
-    const d = await res.json();
-    if (d.code !== 0) throw new Error(d.msg || 'update failed');
-    return d.data;
+    await DataService.update(TABLE_IDS.materials, id, data);
+    return await this.findById(id);
   },
 
   async delete(id: string): Promise<boolean> {
-    const res = await fetch(`${BASE}/api/materials?id=${id}`, { method: 'DELETE' });
-    const d = await res.json();
-    return d.code === 0;
+    return await DataService.delete(TABLE_IDS.materials, id);
   },
 };
 
 // ========== 产品 ==========
 export const ProductRepo = {
   async findAll(): Promise<Product[]> {
-    const res = await fetch(`${BASE}/api/products`);
-    const d = await res.json();
-    return d.code === 0 ? d.data : [];
+    return await DataService.list(TABLE_IDS.products) as Product[];
   },
 
   async findById(id: string): Promise<Product | undefined> {
@@ -177,14 +126,9 @@ export const ProductRepo = {
     if (all.find(p => p.code === data.code)) {
       throw new Error(`产品编号 "${data.code}" 已存在`);
     }
-    const res = await fetch(`${BASE}/api/products`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-    const d = await res.json();
-    if (d.code !== 0) throw new Error(d.msg || 'create failed');
-    return d.data;
+    await DataService.create(TABLE_IDS.products, data);
+    const updated = await this.findAll();
+    return updated[updated.length - 1];
   },
 
   async update(id: string, data: Partial<Product>): Promise<Product | undefined> {
@@ -192,29 +136,19 @@ export const ProductRepo = {
     if (all.find(p => p.id !== id && data.code && p.code === data.code)) {
       throw new Error(`产品编号 "${data.code}" 已存在`);
     }
-    const res = await fetch(`${BASE}/api/products`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, ...data })
-    });
-    const d = await res.json();
-    if (d.code !== 0) throw new Error(d.msg || 'update failed');
-    return d.data;
+    await DataService.update(TABLE_IDS.products, id, data);
+    return await this.findById(id);
   },
 
   async delete(id: string): Promise<boolean> {
-    const res = await fetch(`${BASE}/api/products?id=${id}`, { method: 'DELETE' });
-    const d = await res.json();
-    return d.code === 0;
+    return await DataService.delete(TABLE_IDS.products, id);
   },
 };
 
 // ========== 工艺 ==========
 export const ProcessRepo = {
   async findAll(): Promise<Process[]> {
-    const res = await fetch(`${BASE}/api/processes`);
-    const d = await res.json();
-    return d.code === 0 ? d.data : [];
+    return await DataService.list(TABLE_IDS.processes) as Process[];
   },
 
   async findById(id: string): Promise<Process | undefined> {
@@ -227,14 +161,9 @@ export const ProcessRepo = {
     if (all.find(p => p.name === data.name)) {
       throw new Error(`工艺名称 "${data.name}" 已存在`);
     }
-    const res = await fetch(`${BASE}/api/processes`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-    const d = await res.json();
-    if (d.code !== 0) throw new Error(d.msg || 'create failed');
-    return d.data;
+    await DataService.create(TABLE_IDS.processes, data);
+    const updated = await this.findAll();
+    return updated[updated.length - 1];
   },
 
   async update(id: string, data: Partial<Process>): Promise<Process | undefined> {
@@ -242,29 +171,19 @@ export const ProcessRepo = {
     if (all.find(p => p.id !== id && data.name && p.name === data.name)) {
       throw new Error(`工艺名称 "${data.name}" 已存在`);
     }
-    const res = await fetch(`${BASE}/api/processes`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, ...data })
-    });
-    const d = await res.json();
-    if (d.code !== 0) throw new Error(d.msg || 'update failed');
-    return d.data;
+    await DataService.update(TABLE_IDS.processes, id, data);
+    return await this.findById(id);
   },
 
   async delete(id: string): Promise<boolean> {
-    const res = await fetch(`${BASE}/api/processes?id=${id}`, { method: 'DELETE' });
-    const d = await res.json();
-    return d.code === 0;
+    return await DataService.delete(TABLE_IDS.processes, id);
   },
 };
 
 // ========== 工序 ==========
 export const WorkstationRepo = {
   async findAll(): Promise<Workstation[]> {
-    const res = await fetch(`${BASE}/api/workstations`);
-    const d = await res.json();
-    return d.code === 0 ? d.data : [];
+    return await DataService.list(TABLE_IDS.workstations) as Workstation[];
   },
 
   async findById(id: string): Promise<Workstation | undefined> {
@@ -277,14 +196,9 @@ export const WorkstationRepo = {
     if (all.find(w => w.name === data.name)) {
       throw new Error(`工序名称 "${data.name}" 已存在`);
     }
-    const res = await fetch(`${BASE}/api/workstations`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-    const d = await res.json();
-    if (d.code !== 0) throw new Error(d.msg || 'create failed');
-    return d.data;
+    await DataService.create(TABLE_IDS.workstations, data);
+    const updated = await this.findAll();
+    return updated[updated.length - 1];
   },
 
   async update(id: string, data: Partial<Workstation>): Promise<Workstation | undefined> {
@@ -292,19 +206,11 @@ export const WorkstationRepo = {
     if (all.find(w => w.id !== id && data.name && w.name === data.name)) {
       throw new Error(`工序名称 "${data.name}" 已存在`);
     }
-    const res = await fetch(`${BASE}/api/workstations`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, ...data })
-    });
-    const d = await res.json();
-    if (d.code !== 0) throw new Error(d.msg || 'update failed');
-    return d.data;
+    await DataService.update(TABLE_IDS.workstations, id, data);
+    return await this.findById(id);
   },
 
   async delete(id: string): Promise<boolean> {
-    const res = await fetch(`${BASE}/api/workstations?id=${id}`, { method: 'DELETE' });
-    const d = await res.json();
-    return d.code === 0;
+    return await DataService.delete(TABLE_IDS.workstations, id);
   },
 };
