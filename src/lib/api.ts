@@ -9,8 +9,8 @@ async function getToken(): Promise<string> {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      app_id: 'cli_a9521be8ba351cb2',
-      app_secret: '3pjAPhlHHM89rNh94Iu3BcUPqTlCVBJE'
+      app_id: 'cli_a942474699f85cc1',
+      app_secret: 'aY6lJiIPeicpOVzyRMFROCUFRijRY4pf'
     })
   });
   const data = await res.json();
