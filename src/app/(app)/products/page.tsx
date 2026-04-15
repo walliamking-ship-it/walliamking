@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import PageHeader from '@/components/PageHeader';
 import OrderTable, { Column } from '@/components/OrderTable';
-import { MoneyCell } from '@/components/StatusBadge';
+import CsvImportModal from '@/components/CsvImportModal';
 import { Product } from '@/lib/types';
 import { ProductRepo } from '@/lib/repo';
 
@@ -113,6 +113,7 @@ export default function ProductsPage() {
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Partial<Product> | undefined>();
+  const [importModalOpen, setImportModalOpen] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -133,6 +134,28 @@ export default function ProductsPage() {
     else await ProductRepo.create(form as Omit<Product, 'id'>);
     await loadData();
     setEditingItem(undefined);
+  };
+
+  const handleCsvImport = async (rows: Record<string, string>[]) => {
+    for (const row of rows) {
+      const code = row['货号'] || row['code'] || '';
+      const name = row['产品名称'] || row['名称'] || row['name'] || '';
+      if (!name) continue;
+      const existing = data.find(p => p.code === code);
+      const fields = {
+        code, name,
+        spec: row['规格型号'] || row['spec'] || '',
+        unit: row['单位'] || row['unit'] || '个',
+        category: row['分类'] || row['category'] || '',
+        customer: row['客户'] || row['customer'] || '',
+        purchasePrice: parseFloat(row['进价'] || row['purchasePrice'] || '0') || 0,
+        salePrice: parseFloat(row['售价'] || row['salePrice'] || '0') || 0,
+        remark: row['备注'] || row['remark'] || '',
+      };
+      if (existing) { await ProductRepo.update(existing.id, fields); }
+      else { await ProductRepo.create(fields as Omit<Product, 'id'>); }
+    }
+    await loadData();
   };
 
   const handleEdit = (item: Product) => { setEditingItem(item); setModalOpen(true); };
@@ -165,7 +188,15 @@ export default function ProductsPage() {
         onSearch={setSearch}
         actions={[
           { label: '新建产品', icon: '＋', variant: 'primary' as const, onClick: () => { setEditingItem({}); setModalOpen(true); } },
-          { label: '批量操作', onClick: () => alert('批量操作功能开发中') },
+          { label: '导入CSV', icon: '↓', variant: 'default' as const, onClick: () => setImportModalOpen(true) },
+          { label: '导出CSV', icon: '↑', variant: 'default' as const, onClick: () => {
+            const csv = ['货号,产品名称,规格型号,单位,分类,客户,进价,售价,备注',
+              ...filtered.map(p => `${p.code},${p.name},${p.spec},${p.unit},${p.category},${p.customer},${p.purchasePrice},${p.salePrice},${p.remark}`)].join('\n');
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url; a.download = `产品列表_${new Date().toISOString().slice(0,10)}.csv`; a.click();
+            URL.revokeObjectURL(url);
+          } },
         ]}
       />
 
@@ -186,6 +217,9 @@ export default function ProductsPage() {
         onSave={handleSave}
         initial={editingItem}
       />
+      <CsvImportModal open={importModalOpen} onClose={() => setImportModalOpen(false)} onImport={handleCsvImport}
+        headers={['货号', '产品名称', '规格型号', '单位', '分类', '客户', '进价', '售价', '备注']}
+        fields={['code', 'name', 'spec', 'unit', 'category', 'customer', 'purchasePrice', 'salePrice', 'remark']} />
     </div>
   );
 }

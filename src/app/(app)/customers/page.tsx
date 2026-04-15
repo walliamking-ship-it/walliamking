@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import PageHeader from '@/components/PageHeader';
 import OrderTable, { Column } from '@/components/OrderTable';
+import CsvImportModal from '@/components/CsvImportModal';
 import { Customer } from '@/lib/types';
 import { CustomerRepo } from '@/lib/repo';
 
@@ -96,6 +97,7 @@ export default function CustomersPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Partial<Customer> | undefined>();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [importModalOpen, setImportModalOpen] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -116,6 +118,34 @@ export default function CustomersPage() {
     else await CustomerRepo.create(form as Omit<Customer, 'id'>);
     await loadData();
     setEditingItem(undefined);
+  };
+
+  const handleCsvImport = async (rows: Record<string, string>[]) => {
+    for (const row of rows) {
+      const code = row['客户编号'] || row['编号'] || row['code'] || '';
+      const name = row['客户名称'] || row['名称'] || row['name'] || '';
+      if (!code || !name) continue;
+      const existing = data.find(c => c.code === code);
+      if (existing) {
+        await CustomerRepo.update(existing.id, {
+          name: row['客户名称'] || row['名称'] || existing.name,
+          contact: row['联系人'] || row['contact'] || '',
+          phone: row['电话'] || row['phone'] || '',
+          address: row['地址'] || row['address'] || '',
+          remark: row['备注'] || row['remark'] || '',
+        });
+      } else {
+        await CustomerRepo.create({
+          code,
+          name: row['客户名称'] || row['名称'] || name,
+          contact: row['联系人'] || row['contact'] || '',
+          phone: row['电话'] || row['phone'] || '',
+          address: row['地址'] || row['address'] || '',
+          remark: row['备注'] || row['remark'] || '',
+        });
+      }
+    }
+    await loadData();
   };
 
   const handleEdit = (item: Customer) => { setEditingItem(item); setModalOpen(true); };
@@ -148,7 +178,15 @@ export default function CustomersPage() {
         onSearch={setSearch}
         actions={[
           { label: '新建客户', icon: '＋', variant: 'primary' as const, onClick: () => { setEditingItem({}); setModalOpen(true); } },
-          { label: '批量操作', onClick: () => alert('批量操作功能开发中') },
+          { label: '导入CSV', icon: '↓', variant: 'default' as const, onClick: () => setImportModalOpen(true) },
+          { label: '导出CSV', icon: '↑', variant: 'default' as const, onClick: () => {
+            const csv = ['客户编号,客户名称,联系人,电话,地址,备注',
+              ...filtered.map(c => `${c.code},${c.name},${c.contact},${c.phone},${c.address},${c.remark}`)].join('\n');
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url; a.download = `客户列表_${new Date().toISOString().slice(0,10)}.csv`; a.click();
+            URL.revokeObjectURL(url);
+          } },
         ]}
       />
 
@@ -168,6 +206,13 @@ export default function CustomersPage() {
         onClose={() => { setModalOpen(false); setEditingItem(undefined); }}
         onSave={handleSave}
         initial={editingItem}
+      />
+      <CsvImportModal
+        open={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+        onImport={handleCsvImport}
+        headers={['客户编号', '客户名称', '联系人', '电话', '地址', '备注']}
+        fields={['code', 'name', 'contact', 'phone', 'address', 'remark']}
       />
     </div>
   );

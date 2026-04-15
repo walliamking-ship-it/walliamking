@@ -3,22 +3,58 @@ import {
   SalesOrder, PurchaseOrder, Inventory, ProcessingOrder
 } from './types';
 
-// 客户模拟数据
+// 客户模拟数据（来自秒账真实数据）
 export const mockCustomers: Customer[] = [
-  { id: '1', code: 'C001', name: '李宁体育', contact: '张经理', phone: '13800138001', address: '北京朝阳区', remark: '长期客户' },
-  { id: '2', code: 'C002', name: '安踏集团', contact: '王总', phone: '13900139002', address: '厦门思明区', remark: '' },
-  { id: '3', code: 'C003', name: '特步国际', contact: '刘小姐', phone: '13700137003', address: '泉州鲤城区', remark: '月结30天' },
-  { id: '4', code: 'C004', name: '361度', contact: '陈经理', phone: '13600136004', address: '广州天河区', remark: '' },
-  { id: '5', code: 'C005', name: '鸿星尔克', contact: '林总', phone: '13500135005', address: '泉州晋江市', remark: '新客户' },
+  { id: '1', code: 'C01', name: '天一纺织', contact: 'Max 徐', phone: '13738004619', address: '', remark: '' },
+  { id: '2', code: 'C03', name: '托科斯', contact: 'Sancy', phone: '17621127991', address: '', remark: '' },
+  { id: '3', code: 'C04', name: '巧克力玩家', contact: '汤剑伟(汤总)', phone: '13817156428', address: '', remark: '' },
+  { id: '4', code: 'C05', name: '白领仕', contact: '沃小娟(沃总)', phone: '15862629882', address: '', remark: '' },
+  { id: '5', code: 'C06', name: '沃兔', contact: '邵建君(邵总)', phone: '13801667612', address: '', remark: '' },
+  { id: '6', code: 'C07', name: '森创服饰', contact: '杨慧(杨总)', phone: '13916602886', address: '', remark: '' },
+  { id: '7', code: 'C08', name: '奇翰', contact: '赖洪奇(赖总)', phone: '13816105435', address: '', remark: '' },
+  { id: '8', code: 'C09', name: '易景', contact: '周杰(周总)', phone: '18602529333', address: '', remark: '' },
+  { id: '9', code: 'C10', name: '衣架', contact: 'Even 曲', phone: '13761422426', address: '', remark: '' },
+  { id: '10', code: 'C11', name: '素奇科技', contact: '阿海', phone: '13761422426', address: '', remark: '' },
+  { id: '11', code: 'C12', name: 'NEIWAI', contact: '当当', phone: '15862629882', address: '', remark: '' },
+  { id: '12', code: 'C12-1', name: 'NEIWAI维珍妮越南（嘉合越）', contact: '胡帅', phone: '15989324950', address: '', remark: '' },
+  { id: '13', code: 'C12-2', name: 'NEIWAI广州佳达', contact: 'becky', phone: '86-20-84876008 Ext.3361', address: '', remark: '' },
+  { id: '14', code: 'C12-3', name: 'NEIWAI东佑', contact: '', phone: '', address: '', remark: '' },
+  { id: '15', code: 'C12-4', name: 'NEIWAI维珍妮深圳', contact: 'Iris Chen/陈虹延', phone: '18218681500', address: '', remark: '' },
+  { id: '16', code: 'C12-5', name: 'NEIWAI盐城暖尚', contact: '小何', phone: '13916604725', address: '', remark: '' },
+  { id: '17', code: 'C12-6', name: 'NEIWAI上海旭美隆', contact: '孙桂芬', phone: '15026633084', address: '', remark: '' },
+  { id: '18', code: 'C12-7', name: 'NEIWAI悦盛', contact: '张晓斌', phone: '13715895888', address: '', remark: '' },
+  { id: '19', code: 'C12-8', name: 'NEIWAI卓跃', contact: '陈波', phone: '13322914137', address: '', remark: '' },
+  { id: '20', code: 'C12-9', name: 'NEIWAI川行', contact: '邹洋', phone: '15219942034', address: '', remark: '' },
+  { id: '21', code: 'C12-2', name: 'KESTOS广州佳达', contact: 'becky', phone: '86-20-84876008 Ext.3361', address: '', remark: '' },
+  { id: '22', code: 'C13', name: '海宁勇者', contact: '周', phone: '16601748697', address: '', remark: '' },
+  { id: '23', code: 'C14', name: '得盛', contact: '沈佳沁', phone: '18757365168', address: '', remark: '' },
+  { id: '24', code: 'C15', name: '上海采高', contact: '吴仪', phone: '19370688373', address: '', remark: '' },
 ];
 
-// 供应商模拟数据
+// 供应商模拟数据（来自秒账真实数据）
 export const mockVendors: Vendor[] = [
-  { id: '1', code: 'V001', name: '金霸王纸张', contact: '黄老板', phone: '13888138001', address: '广东东莞', remark: '纸张供应商' },
-  { id: '2', code: 'V002', name: '中油油墨', contact: '李经理', phone: '13888138002', address: '江苏苏州', remark: '油墨供应商' },
-  { id: '3', code: 'V003', name: '永新覆膜', contact: '周总', phone: '13888138003', address: '浙江温州', remark: '覆膜材料' },
-  { id: '4', code: 'V004', name: '利群刀模', contact: '吴师傅', phone: '13888138004', address: '广东深圳', remark: '刀模定制' },
-  { id: '5', code: 'V005', name: '顺丰纸业', contact: '张小姐', phone: '13888138005', address: '山东青岛', remark: '' },
+  { id: '1', code: 'S01', name: '百思蓝德', contact: '', phone: '', address: '', remark: '' },
+  { id: '2', code: 'S02', name: '捷成印刷', contact: '金超喆', phone: '15706746202', address: '', remark: '' },
+  { id: '3', code: 'S03', name: '易景', contact: '', phone: '', address: '', remark: '' },
+  { id: '4', code: 'S04', name: '得盛', contact: '', phone: '', address: '', remark: '' },
+  { id: '5', code: 'S05', name: '万强', contact: '', phone: '', address: '', remark: '' },
+  { id: '6', code: 'S06', name: '三井', contact: '', phone: '', address: '', remark: '' },
+  { id: '7', code: 'S07', name: '中嘉', contact: '', phone: '', address: '', remark: '' },
+  { id: '8', code: 'S08', name: '华顺', contact: '', phone: '', address: '', remark: '' },
+  { id: '9', code: 'S09', name: '金华优昊', contact: '', phone: '', address: '', remark: '' },
+  { id: '10', code: 'S10', name: '天益', contact: '', phone: '', address: '', remark: '' },
+  { id: '11', code: 'S11', name: '鑫唛子', contact: '', phone: '', address: '', remark: '' },
+  { id: '12', code: 'S12', name: '溢泓堂', contact: '', phone: '', address: '', remark: '' },
+  { id: '13', code: 'S13', name: '释海', contact: '', phone: '', address: '', remark: '' },
+  { id: '14', code: 'S14', name: '超耐斯', contact: '', phone: '', address: '', remark: '' },
+  { id: '15', code: 'S15', name: '凯优', contact: '', phone: '', address: '', remark: '' },
+  { id: '16', code: 'S16', name: '梓宸星', contact: '', phone: '', address: '', remark: '' },
+  { id: '17', code: 'S17', name: '起印', contact: '', phone: '', address: '', remark: '' },
+  { id: '18', code: 'S18', name: '肖王包装', contact: '高总', phone: '', address: '', remark: '' },
+  { id: '19', code: 'S19', name: '谦林包装', contact: '兰小姐', phone: '18968774817', address: '', remark: '' },
+  { id: '20', code: 'S20', name: '辰跃纸业', contact: '周振超', phone: '18019228336', address: '', remark: '' },
+  { id: '21', code: 'S21', name: '嘉小友', contact: '傅卿', phone: '13567337973', address: '', remark: '' },
+  { id: '22', code: 'S22', name: '杭州明牛', contact: '', phone: '', address: '', remark: '' },
 ];
 
 // 物料模拟数据
@@ -35,14 +71,38 @@ export const mockMaterials: Material[] = [
   { id: '10', code: 'M010', name: '橡皮布', spec: '标准', unit: '条', category: '辅料', remark: '' },
 ];
 
-// 产品模拟数据
+// 产品模拟数据（来自秒账真实数据）
 export const mockProducts: Product[] = [
-  { id: '1', code: 'C01HT0001', name: 'GWEST 白底黑字吊牌', spec: '350g双层对裱', unit: '个', category: '吊牌', customer: 'C01-天一纺织', purchasePrice: 0.18, salePrice: 0.23, remark: 'LOGO突出,黑底白字' },
-  { id: '2', code: 'C01WO0001', name: 'GWEST 织标', spec: '标准', unit: '个', category: '织标', customer: 'C01-天一纺织', purchasePrice: 0.12, salePrice: 0.28, remark: '' },
-  { id: '3', code: 'C01WA0001', name: 'GWEST 洗标', spec: '70*28mm', unit: '个', category: '洗标', customer: 'C01-天一纺织', purchasePrice: 0.035, salePrice: 0.09, remark: '' },
-  { id: '4', code: 'C01PB0001', name: 'GWEST 塑料袋', spec: '15丝,透明PE150+磨砂PE150', unit: '个', category: '包装袋', customer: 'C01-天一纺织', purchasePrice: 1.1, salePrice: 0.86, remark: '' },
-  { id: '5', code: 'C05HT0001', name: '康宝莱短袖吊牌1', spec: '110*36mm', unit: '个', category: '吊牌', customer: 'C05-白领仕', purchasePrice: 0.06, salePrice: 0.07, remark: '' },
-  { id: '6', code: 'C12HT0036', name: 'KESTOS吊牌', spec: '标准', unit: '个', category: '吊牌', customer: 'C12-NEIWAI', purchasePrice: 0, salePrice: 0.25, remark: '<10000单价：0.25' },
+  { id: '1', code: 'C01HT0001', name: 'DB 通用吊牌', spec: '', unit: '个', category: '吊牌', customer: 'C01-天一纺织', purchasePrice: 0.18, salePrice: 0.23, remark: '' },
+  { id: '2', code: 'C01HT0002', name: 'DB 大号吊牌', spec: '', unit: '个', category: '吊牌', customer: 'C01-天一纺织', purchasePrice: 0, salePrice: 0, remark: '' },
+  { id: '3', code: 'C01HT0003', name: 'DB 吊牌A款', spec: '', unit: '个', category: '吊牌', customer: 'C01-天一纺织', purchasePrice: 0, salePrice: 0, remark: '' },
+  { id: '4', code: 'C01HT0006', name: 'DB 白色吊牌', spec: '', unit: '个', category: '吊牌', customer: 'C01-天一纺织', purchasePrice: 0.16, salePrice: 0.2, remark: '' },
+  { id: '5', code: 'C01HT0007', name: 'DB 黑色吊牌', spec: '', unit: '个', category: '吊牌', customer: 'C01-天一纺织', purchasePrice: 0.34, salePrice: 0, remark: '' },
+  { id: '6', code: 'C01HT0008', name: 'DB 红色吊牌', spec: '', unit: '个', category: '吊牌', customer: 'C01-天一纺织', purchasePrice: 0, salePrice: 0, remark: '' },
+  { id: '7', code: 'C01HT0009', name: 'DB 蓝色吊牌', spec: '', unit: '个', category: '吊牌', customer: 'C01-天一纺织', purchasePrice: 0, salePrice: 0, remark: '' },
+  { id: '8', code: 'C01HT0013', name: 'CAD吊牌', spec: '', unit: '个', category: '吊牌', customer: 'C05-白领仕', purchasePrice: 0.08, salePrice: 0.1, remark: '' },
+  { id: '9', code: 'C05HT0016', name: '史努比吊牌', spec: '', unit: '个', category: '吊牌', customer: 'C05-白领仕', purchasePrice: 0, salePrice: 0.07, remark: '' },
+  { id: '10', code: 'C06HT0003', name: 'Blizzcon鲨鱼吊牌', spec: '', unit: '个', category: '吊牌', customer: 'C06-沃兔', purchasePrice: 0, salePrice: 0, remark: '' },
+  { id: '11', code: 'C09HT0004', name: '易景红色吊牌', spec: '', unit: '个', category: '吊牌', customer: 'C09-易景', purchasePrice: 0, salePrice: 0, remark: '' },
+  { id: '12', code: 'C01WO0002', name: 'GWEST 织标', spec: '', unit: '个', category: '织标', customer: 'C01-天一纺织', purchasePrice: 0.12, salePrice: 0.28, remark: '' },
+  { id: '13', code: 'C01WO0003', name: 'GWEST 织标', spec: '', unit: '个', category: '织标', customer: 'C01-天一纺织', purchasePrice: 0, salePrice: 0, remark: '' },
+  { id: '14', code: 'C01WO0004', name: 'GWEST 织标', spec: '', unit: '个', category: '织标', customer: 'C01-天一纺织', purchasePrice: 0, salePrice: 0, remark: '' },
+  { id: '15', code: 'C01WO0005', name: 'GWEST 织标', spec: '', unit: '个', category: '织标', customer: 'C01-天一纺织', purchasePrice: 0, salePrice: 0, remark: '' },
+  { id: '16', code: 'C01WO0006', name: 'GWEST 织标', spec: '', unit: '个', category: '织标', customer: 'C01-天一纺织', purchasePrice: 0, salePrice: 0, remark: '' },
+  { id: '17', code: 'C05WO0007', name: '史努比织标', spec: '', unit: '个', category: '织标', customer: 'C05-白领仕', purchasePrice: 0, salePrice: 0.18, remark: '' },
+  { id: '18', code: 'C01WA0004', name: 'DB 洗标', spec: '', unit: '个', category: '洗标', customer: 'C01-天一纺织', purchasePrice: 0, salePrice: 0, remark: '' },
+  { id: '19', code: 'C01WA0005', name: 'DB 洗标', spec: '', unit: '个', category: '洗标', customer: 'C01-天一纺织', purchasePrice: 0, salePrice: 0, remark: '' },
+  { id: '20', code: 'C01ST0001', name: 'DB 条形码贴纸', spec: '', unit: '个', category: '贴纸', customer: 'C01-天一纺织', purchasePrice: 0, salePrice: 0, remark: '' },
+  { id: '21', code: 'C01ST0002', name: 'DB 不干胶', spec: '', unit: '个', category: '贴纸', customer: 'C01-天一纺织', purchasePrice: 0.1, salePrice: 0.12, remark: '' },
+  { id: '22', code: 'C03ST0005', name: '8818不干胶贴纸', spec: '', unit: '个', category: '贴纸', customer: 'C03-托科斯', purchasePrice: 0.05, salePrice: 0.21, remark: '' },
+  { id: '23', code: 'C03ST0007', name: '8895DM外标签', spec: '', unit: '个', category: '贴纸', customer: 'C03-托科斯', purchasePrice: 0.1, salePrice: 0.26, remark: '' },
+  { id: '24', code: 'C01OT0001', name: 'DB 贴纸', spec: '', unit: '个', category: '其他', customer: 'C01-天一纺织', purchasePrice: 0, salePrice: 0, remark: '' },
+  { id: '25', code: 'C01OT0002', name: 'DB 合格证', spec: '', unit: '个', category: '其他', customer: 'C01-天一纺织', purchasePrice: 0, salePrice: 0, remark: '' },
+  { id: '26', code: 'C01OT0003', name: 'DB 吊绳吊粒', spec: '', unit: '个', category: '其他', customer: 'C01-天一纺织', purchasePrice: 0.03, salePrice: 0.1, remark: '' },
+  { id: '27', code: 'C01OT0004', name: 'DB 吊粒', spec: '', unit: '个', category: '其他', customer: 'C01-天一纺织', purchasePrice: 0, salePrice: 0, remark: '' },
+  { id: '28', code: 'C01PB0001', name: 'DB 塑料袋', spec: '', unit: '个', category: '包装袋', customer: 'C01-天一纺织', purchasePrice: 1.1, salePrice: 0.86, remark: '' },
+  { id: '29', code: 'C01PB0002', name: 'DB 包装袋', spec: '', unit: '个', category: '包装袋', customer: 'C01-天一纺织', purchasePrice: 0, salePrice: 0, remark: '' },
+  { id: '30', code: 'C15HT0001', name: 'coco金贴背卡', spec: '', unit: '个', category: '吊牌', customer: 'C15-上海采高', purchasePrice: 0, salePrice: 0.088, remark: '' },
 ];
 
 // 工艺模拟数据

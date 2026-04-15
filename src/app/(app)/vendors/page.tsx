@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import PageHeader from '@/components/PageHeader';
 import OrderTable, { Column } from '@/components/OrderTable';
+import CsvImportModal from '@/components/CsvImportModal';
 import { Vendor } from '@/lib/types';
 import { VendorRepo } from '@/lib/repo';
 
@@ -93,6 +94,7 @@ export default function VendorsPage() {
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Partial<Vendor> | undefined>();
+  const [importModalOpen, setImportModalOpen] = useState(false);
 
   const loadData = async () => { setLoading(true); try { setData(await VendorRepo.findAll()); } finally { setLoading(false); } };
   useEffect(() => { loadData(); }, []);
@@ -107,6 +109,31 @@ export default function VendorsPage() {
     else await VendorRepo.create(form as Omit<Vendor, 'id'>);
     await loadData();
     setEditingItem(undefined);
+  };
+
+  const handleCsvImport = async (rows: Record<string, string>[]) => {
+    for (const row of rows) {
+      const code = row['供应商编号'] || row['编号'] || row['code'] || '';
+      const name = row['供应商名称'] || row['名称'] || row['name'] || '';
+      if (!code || !name) continue;
+      const existing = data.find(v => v.code === code);
+      if (existing) {
+        await VendorRepo.update(existing.id, {
+          name: row['供应商名称'] || row['名称'] || existing.name,
+          contact: row['联系人'] || row['contact'] || '',
+          phone: row['电话'] || row['phone'] || '',
+          address: row['地址'] || row['address'] || '',
+          remark: row['备注'] || row['remark'] || '',
+        });
+      } else {
+        await VendorRepo.create({
+          code, name: row['供应商名称'] || row['名称'] || name,
+          contact: row['联系人'] || row['contact'] || '', phone: row['电话'] || row['phone'] || '',
+          address: row['地址'] || row['address'] || '', remark: row['备注'] || row['remark'] || '',
+        });
+      }
+    }
+    await loadData();
   };
 
   const handleEdit = (item: Vendor) => { setEditingItem(item); setModalOpen(true); };
@@ -125,12 +152,26 @@ export default function VendorsPage() {
   return (
     <div className="flex flex-col h-full">
       <PageHeader title="供应商管理" searchPlaceholder="搜索 编号 / 名称 / 联系人 / 电话 / 地址 / 备注..." onSearch={setSearch}
-        actions={[{ label: '新建供应商', icon: '＋', variant: 'primary' as const, onClick: () => { setEditingItem({}); setModalOpen(true); } }, { label: '批量操作', onClick: () => alert('批量操作功能开发中') }]} />
+        actions={[
+          { label: '新建供应商', icon: '＋', variant: 'primary' as const, onClick: () => { setEditingItem({}); setModalOpen(true); } },
+          { label: '导入CSV', icon: '↓', variant: 'default' as const, onClick: () => setImportModalOpen(true) },
+          { label: '导出CSV', icon: '↑', variant: 'default' as const, onClick: () => {
+            const csv = ['供应商编号,供应商名称,联系人,电话,地址,备注',
+              ...filtered.map(v => `${v.code},${v.name},${v.contact},${v.phone},${v.address},${v.remark}`)].join('\n');
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url; a.download = `供应商列表_${new Date().toISOString().slice(0,10)}.csv`; a.click();
+            URL.revokeObjectURL(url);
+          } },
+        ]} />
       <div className="flex-1 overflow-auto bg-white">
         <OrderTable columns={tableColumns} data={filtered} loading={loading} emptyMessage="暂无供应商数据"
           onRowClick={item => handleEdit(item)} renderOrderNumber={item => <span className="text-blue-600 font-mono text-xs hover:underline">{item.code}</span>} />
       </div>
       <FormModal open={modalOpen} onClose={() => { setModalOpen(false); setEditingItem(undefined); }} onSave={handleSave} initial={editingItem} />
+      <CsvImportModal open={importModalOpen} onClose={() => setImportModalOpen(false)} onImport={handleCsvImport}
+        headers={['供应商编号', '供应商名称', '联系人', '电话', '地址', '备注']}
+        fields={['code', 'name', 'contact', 'phone', 'address', 'remark']} />
     </div>
   );
 }
