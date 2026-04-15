@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import PageHeader from '@/components/PageHeader';
 import OrderTable, { Column } from '@/components/OrderTable';
+import CsvImportModal from '@/components/CsvImportModal';
 import { Material } from '@/lib/types';
 import { MaterialRepo } from '@/lib/repo';
 
@@ -80,12 +81,25 @@ export default function MaterialsPage() {
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Partial<Material> | undefined>();
+  const [importModalOpen, setImportModalOpen] = useState(false);
 
   const loadData = async () => { setLoading(true); try { setData(await MaterialRepo.findAll()); } finally { setLoading(false); } };
   useEffect(() => { loadData(); }, []);
 
   const filtered = data.filter(item => { const q = search.toLowerCase(); return !q || [item.code, item.name, item.spec, item.unit, item.category, item.remark].some(v => v?.toLowerCase().includes(q)); });
   const handleSave = async (form: Partial<Material>) => { if (editingItem?.id) await MaterialRepo.update(editingItem.id, form); else await MaterialRepo.create(form as Omit<Material, 'id'>); await loadData(); setEditingItem(undefined); };
+  const handleCsvImport = async (rows: Record<string, string>[]) => {
+    for (const row of rows) {
+      const code = row['物料编号'] || row['编号'] || '';
+      const name = row['物料名称'] || row['名称'] || '';
+      if (!code || !name) continue;
+      const existing = data.find(m => m.code === code);
+      const fields = { code, name, spec: row['规格型号'] || '', unit: row['单位'] || '', category: row['分类'] || '', remark: row['备注'] || '' };
+      if (existing) { await MaterialRepo.update(existing.id, fields); }
+      else { await MaterialRepo.create(fields as Omit<Material, 'id'>); }
+    }
+    await loadData();
+  };
   const handleEdit = (item: Material) => { setEditingItem(item); setModalOpen(true); };
   const handleDelete = async (id: string) => { if (!confirm('确定删除该物料？')) return; await MaterialRepo.delete(id); await loadData(); };
 
@@ -99,12 +113,26 @@ export default function MaterialsPage() {
   return (
     <div className="flex flex-col h-full">
       <PageHeader title="物料管理" searchPlaceholder="搜索 编号 / 名称 / 规格 / 分类 / 备注..." onSearch={setSearch}
-        actions={[{ label: '新建物料', icon: '＋', variant: 'primary' as const, onClick: () => { setEditingItem({}); setModalOpen(true); } }, { label: '批量操作', onClick: () => alert('批量操作功能开发中') }]} />
+        actions={[
+          { label: '新建物料', icon: '＋', variant: 'primary' as const, onClick: () => { setEditingItem({}); setModalOpen(true); } },
+          { label: '导入CSV', icon: '↓', variant: 'default' as const, onClick: () => setImportModalOpen(true) },
+          { label: '导出CSV', icon: '↑', variant: 'default' as const, onClick: () => {
+            const csv = ['物料编号,物料名称,规格型号,单位,分类,备注',
+              ...filtered.map(m => `${m.code},${m.name},${m.spec},${m.unit},${m.category},${m.remark}`)].join('\n');
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url; a.download = `物料列表_${new Date().toISOString().slice(0,10)}.csv`; a.click();
+            URL.revokeObjectURL(url);
+          } },
+        ]} />
       <div className="flex-1 overflow-auto bg-white">
         <OrderTable columns={tableColumns} data={filtered} loading={loading} emptyMessage="暂无物料数据" onRowClick={item => handleEdit(item)}
           renderOrderNumber={item => <span className="text-blue-600 font-mono text-xs hover:underline">{item.code}</span>} />
       </div>
       <FormModal open={modalOpen} onClose={() => { setModalOpen(false); setEditingItem(undefined); }} onSave={handleSave} initial={editingItem} />
+      <CsvImportModal open={importModalOpen} onClose={() => setImportModalOpen(false)} onImport={handleCsvImport}
+        headers={['物料编号', '物料名称', '规格型号', '单位', '分类', '备注']}
+        fields={['code', 'name', 'spec', 'unit', 'category', 'remark']} />
     </div>
   );
 }

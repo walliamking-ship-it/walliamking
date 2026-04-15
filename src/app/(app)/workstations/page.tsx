@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import PageHeader from '@/components/PageHeader';
 import OrderTable, { Column } from '@/components/OrderTable';
+import CsvImportModal from '@/components/CsvImportModal';
 import { Workstation } from '@/lib/types';
 import { WorkstationRepo } from '@/lib/repo';
 
@@ -71,12 +72,24 @@ export default function WorkstationsPage() {
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Partial<Workstation> | undefined>();
+  const [importModalOpen, setImportModalOpen] = useState(false);
 
   const loadData = async () => { setLoading(true); try { setData(await WorkstationRepo.findAll()); } finally { setLoading(false); } };
   useEffect(() => { loadData(); }, []);
 
   const filtered = data.filter(item => { const q = search.toLowerCase(); return !q || [item.name, item.remark].some(v => v?.toLowerCase().includes(q)); });
   const handleSave = async (form: Partial<Workstation>) => { if (editingItem?.id) await WorkstationRepo.update(editingItem.id, form); else await WorkstationRepo.create(form as Omit<Workstation, 'id'>); await loadData(); setEditingItem(undefined); };
+  const handleCsvImport = async (rows: Record<string, string>[]) => {
+    for (const row of rows) {
+      const name = row['工序名称'] || row['名称'] || '';
+      if (!name) continue;
+      const existing = data.find(w => w.name === name);
+      const fields = { name, sequence: parseInt(row['顺序'] || row['sequence'] || '0') || 0, outsource: row['是否委外'] === '是' || row['outsource'] === 'true', remark: row['备注'] || '' };
+      if (existing) { await WorkstationRepo.update(existing.id, fields); }
+      else { await WorkstationRepo.create(fields as Omit<Workstation, 'id'>); }
+    }
+    await loadData();
+  };
   const handleEdit = (item: Workstation) => { setEditingItem(item); setModalOpen(true); };
   const handleDelete = async (id: string) => { if (!confirm('确定删除该工序？')) return; await WorkstationRepo.delete(id); await loadData(); };
 
@@ -90,11 +103,25 @@ export default function WorkstationsPage() {
   return (
     <div className="flex flex-col h-full">
       <PageHeader title="工序管理" searchPlaceholder="搜索 工序名称 / 备注..." onSearch={setSearch}
-        actions={[{ label: '新建工序', icon: '＋', variant: 'primary' as const, onClick: () => { setEditingItem({}); setModalOpen(true); } }]} />
+        actions={[
+          { label: '新建工序', icon: '＋', variant: 'primary' as const, onClick: () => { setEditingItem({}); setModalOpen(true); } },
+          { label: '导入CSV', icon: '↓', variant: 'default' as const, onClick: () => setImportModalOpen(true) },
+          { label: '导出CSV', icon: '↑', variant: 'default' as const, onClick: () => {
+            const csv = ['工序名称,顺序,是否委外,备注',
+              ...filtered.map(w => `${w.name},${w.sequence},${w.outsource ? '是' : '否'},${w.remark}`)].join('\n');
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url; a.download = `工序列表_${new Date().toISOString().slice(0,10)}.csv`; a.click();
+            URL.revokeObjectURL(url);
+          } },
+        ]} />
       <div className="flex-1 overflow-auto bg-white">
         <OrderTable columns={tableColumns} data={filtered} loading={loading} emptyMessage="暂无工序数据" onRowClick={item => handleEdit(item)} />
       </div>
       <FormModal open={modalOpen} onClose={() => { setModalOpen(false); setEditingItem(undefined); }} onSave={handleSave} initial={editingItem} />
+      <CsvImportModal open={importModalOpen} onClose={() => setImportModalOpen(false)} onImport={handleCsvImport}
+        headers={['工序名称', '顺序', '是否委外', '备注']}
+        fields={['name', 'sequence', 'outsource', 'remark']} />
     </div>
   );
 }

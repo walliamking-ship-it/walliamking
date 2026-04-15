@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import PageHeader from '@/components/PageHeader';
 import OrderTable, { Column } from '@/components/OrderTable';
+import CsvImportModal from '@/components/CsvImportModal';
 import { Process } from '@/lib/types';
 import { ProcessRepo } from '@/lib/repo';
 
@@ -71,12 +72,24 @@ export default function ProcessesPage() {
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Partial<Process> | undefined>();
+  const [importModalOpen, setImportModalOpen] = useState(false);
 
   const loadData = async () => { setLoading(true); try { setData(await ProcessRepo.findAll()); } finally { setLoading(false); } };
   useEffect(() => { loadData(); }, []);
 
   const filtered = data.filter(item => { const q = search.toLowerCase(); return !q || [item.name, item.remark].some(v => v?.toLowerCase().includes(q)); });
   const handleSave = async (form: Partial<Process>) => { if (editingItem?.id) await ProcessRepo.update(editingItem.id, form); else await ProcessRepo.create(form as Omit<Process, 'id'>); await loadData(); setEditingItem(undefined); };
+  const handleCsvImport = async (rows: Record<string, string>[]) => {
+    for (const row of rows) {
+      const name = row['工艺名称'] || row['名称'] || '';
+      if (!name) continue;
+      const existing = data.find(p => p.name === name);
+      const fields = { name, unitPrice: parseFloat(row['单价'] || row['unitPrice'] || '0') || 0, outsource: row['是否委外'] === '是' || row['outsource'] === 'true', remark: row['备注'] || '' };
+      if (existing) { await ProcessRepo.update(existing.id, fields); }
+      else { await ProcessRepo.create(fields as Omit<Process, 'id'>); }
+    }
+    await loadData();
+  };
   const handleEdit = (item: Process) => { setEditingItem(item); setModalOpen(true); };
   const handleDelete = async (id: string) => { if (!confirm('确定删除该工艺？')) return; await ProcessRepo.delete(id); await loadData(); };
 
@@ -90,11 +103,25 @@ export default function ProcessesPage() {
   return (
     <div className="flex flex-col h-full">
       <PageHeader title="工艺管理" searchPlaceholder="搜索 工艺名称 / 备注..." onSearch={setSearch}
-        actions={[{ label: '新建工艺', icon: '＋', variant: 'primary' as const, onClick: () => { setEditingItem({}); setModalOpen(true); } }]} />
+        actions={[
+          { label: '新建工艺', icon: '＋', variant: 'primary' as const, onClick: () => { setEditingItem({}); setModalOpen(true); } },
+          { label: '导入CSV', icon: '↓', variant: 'default' as const, onClick: () => setImportModalOpen(true) },
+          { label: '导出CSV', icon: '↑', variant: 'default' as const, onClick: () => {
+            const csv = ['工艺名称,单价,是否委外,备注',
+              ...filtered.map(p => `${p.name},${p.unitPrice},${p.outsource ? '是' : '否'},${p.remark}`)].join('\n');
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url; a.download = `工艺列表_${new Date().toISOString().slice(0,10)}.csv`; a.click();
+            URL.revokeObjectURL(url);
+          } },
+        ]} />
       <div className="flex-1 overflow-auto bg-white">
         <OrderTable columns={tableColumns} data={filtered} loading={loading} emptyMessage="暂无工艺数据" onRowClick={item => handleEdit(item)} />
       </div>
       <FormModal open={modalOpen} onClose={() => { setModalOpen(false); setEditingItem(undefined); }} onSave={handleSave} initial={editingItem} />
+      <CsvImportModal open={importModalOpen} onClose={() => setImportModalOpen(false)} onImport={handleCsvImport}
+        headers={['工艺名称', '单价', '是否委外', '备注']}
+        fields={['name', 'unitPrice', 'outsource', 'remark']} />
     </div>
   );
 }
