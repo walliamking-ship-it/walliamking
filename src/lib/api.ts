@@ -2,7 +2,18 @@
  * 飞书 Bitable API - 前端直连（浏览器CORS）
  */
 
-const APP_TOKEN = 'EUyCb0aIcavugUsXJaocRtR6n6b';
+// 基础数据Bitable（客户/供应商/物料/产品/工艺/工序）
+const APP_TOKEN_BASE = 'EUyCb0aIcavugUsXJaocRtR6n6b';
+// 订单库存Bitable（销售订单/采购订单/库存表）
+const APP_TOKEN_ORDER = 'GVgUbTjubaI5m1suvcgctyPOnFc';
+
+function getAppToken(tableId: string): string {
+  // 订单相关表使用独立的Bitable
+  if (tableId.startsWith('tblrs') || tableId.startsWith('tblQF') || tableId.startsWith('tbll0Q')) {
+    return APP_TOKEN_ORDER;
+  }
+  return APP_TOKEN_BASE;
+}
 
 async function getToken(): Promise<string> {
   const res = await fetch('https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal', {
@@ -19,22 +30,23 @@ async function getToken(): Promise<string> {
 
 async function bitableRequest(tableId: string, action: 'list' | 'create' | 'update' | 'delete', recordId?: string, fields?: Record<string, unknown>) {
   const token = await getToken();
-  let url = `https://open.feishu.cn/open-apis/bitable/v1/apps/${APP_TOKEN}/tables/${tableId}/records`;
+  const appToken = getAppToken(tableId);
+  let url = `https://open.feishu.cn/open-apis/bitable/v1/apps/${appToken}/tables/${tableId}/records`;
   let method = 'GET';
   let body: string | undefined;
 
   if (action === 'list') {
-    url = `https://open.feishu.cn/open-apis/bitable/v1/apps/${APP_TOKEN}/tables/${tableId}/records`;
+    url = `https://open.feishu.cn/open-apis/bitable/v1/apps/${appToken}/tables/${tableId}/records`;
     method = 'GET';
   } else if (action === 'create') {
     method = 'POST';
     body = JSON.stringify({ fields });
   } else if (action === 'update' && recordId) {
-    url = `https://open.feishu.cn/open-apis/bitable/v1/apps/${APP_TOKEN}/tables/${tableId}/records/${recordId}`;
+    url = `https://open.feishu.cn/open-apis/bitable/v1/apps/${appToken}/tables/${tableId}/records/${recordId}`;
     method = 'PUT';
     body = JSON.stringify({ fields });
   } else if (action === 'delete' && recordId) {
-    url = `https://open.feishu.cn/open-apis/bitable/v1/apps/${APP_TOKEN}/tables/${tableId}/records/${recordId}`;
+    url = `https://open.feishu.cn/open-apis/bitable/v1/apps/${appToken}/tables/${tableId}/records/${recordId}`;
     method = 'DELETE';
   }
 
@@ -106,4 +118,8 @@ export const TABLE_IDS = {
   products: 'tbl0SuYwqxW5Wulc',
   processes: 'tblPZgPPQwMiQwWe',
   workstations: 'tbl91U0HVS4QpbT0',
+  // 订单库存（新Bitable）
+  salesOrders: 'tblrsogIjpuZHHBq',
+  purchaseOrders: 'tblQFJLUW9ijCAYN',
+  inventory: 'tbll0QRgcWpOhBS3',
 };

@@ -2,7 +2,7 @@
  * 数据仓储层 - 前端直连飞书Bitable API
  */
 
-import { Customer, Vendor, Material, Product, Process, Workstation } from './types';
+import { Customer, Vendor, Material, Product, Process, Workstation, SalesOrder, PurchaseOrder, Inventory } from './types';
 import { DataService, TABLE_IDS } from './api';
 
 // ========== 客户 ==========
@@ -212,5 +212,110 @@ export const WorkstationRepo = {
 
   async delete(id: string): Promise<boolean> {
     return await DataService.delete(TABLE_IDS.workstations, id);
+  },
+};
+
+// ========== 销售订单 ==========
+export const SalesOrderRepo = {
+  async findAll(): Promise<SalesOrder[]> {
+    return await DataService.list(TABLE_IDS.salesOrders) as SalesOrder[];
+  },
+
+  async findById(id: string): Promise<SalesOrder | undefined> {
+    const all = await this.findAll();
+    return all.find(s => s.id === id);
+  },
+
+  async create(data: Omit<SalesOrder, 'id'>): Promise<SalesOrder> {
+    const all = await this.findAll();
+    if (all.find(s => s.单号 === data.单号)) {
+      throw new Error(`销售单号 "${data.单号}" 已存在`);
+    }
+    await DataService.create(TABLE_IDS.salesOrders, data);
+    const updated = await this.findAll();
+    return updated[updated.length - 1];
+  },
+
+  async update(id: string, data: Partial<SalesOrder>): Promise<SalesOrder | undefined> {
+    const all = await this.findAll();
+    if (all.find(s => s.id !== id && data.单号 && s.单号 === data.单号)) {
+      throw new Error(`销售单号 "${data.单号}" 已存在`);
+    }
+    await DataService.update(TABLE_IDS.salesOrders, id, data);
+    return await this.findById(id);
+  },
+
+  async delete(id: string): Promise<boolean> {
+    return await DataService.delete(TABLE_IDS.salesOrders, id);
+  },
+};
+
+// ========== 采购订单 ==========
+export const PurchaseOrderRepo = {
+  async findAll(): Promise<PurchaseOrder[]> {
+    return await DataService.list(TABLE_IDS.purchaseOrders) as PurchaseOrder[];
+  },
+
+  async findById(id: string): Promise<PurchaseOrder | undefined> {
+    const all = await this.findAll();
+    return all.find(p => p.id === id);
+  },
+
+  async create(data: Omit<PurchaseOrder, 'id'>): Promise<PurchaseOrder> {
+    const all = await this.findAll();
+    if (all.find(p => p.单号 === data.单号)) {
+      throw new Error(`采购单号 "${data.单号}" 已存在`);
+    }
+    await DataService.create(TABLE_IDS.purchaseOrders, data);
+    const updated = await this.findAll();
+    return updated[updated.length - 1];
+  },
+
+  async update(id: string, data: Partial<PurchaseOrder>): Promise<PurchaseOrder | undefined> {
+    const all = await this.findAll();
+    if (all.find(p => p.id !== id && data.单号 && p.单号 === data.单号)) {
+      throw new Error(`采购单号 "${data.单号}" 已存在`);
+    }
+    await DataService.update(TABLE_IDS.purchaseOrders, id, data);
+    return await this.findById(id);
+  },
+
+  async delete(id: string): Promise<boolean> {
+    return await DataService.delete(TABLE_IDS.purchaseOrders, id);
+  },
+};
+
+// ========== 库存 ==========
+export const InventoryRepo = {
+  async findAll(): Promise<Inventory[]> {
+    return await DataService.list(TABLE_IDS.inventory) as Inventory[];
+  },
+
+  async findById(id: string): Promise<Inventory | undefined> {
+    const all = await this.findAll();
+    return all.find(i => i.id === id);
+  },
+
+  async create(data: Omit<Inventory, 'id'>): Promise<Inventory> {
+    const all = await this.findAll();
+    if (all.find(i => i.货号 === data.货号)) {
+      throw new Error(`货号 "${data.货号}" 已存在`);
+    }
+    await DataService.create(TABLE_IDS.inventory, data);
+    const updated = await this.findAll();
+    return updated[updated.length - 1];
+  },
+
+  async update(id: string, data: Partial<Inventory>): Promise<Inventory | undefined> {
+    const all = await this.findAll();
+    if (all.find(i => i.id !== id && data.货号 && i.货号 === data.货号)) {
+      throw new Error(`货号 "${data.货号}" 已存在`);
+    }
+    await DataService.update(TABLE_IDS.inventory, id, data);
+    return await this.findById(id);
+  },
+
+  async delete(id: string): Promise<boolean> {
+    return await DataService.delete(TABLE_IDS.inventory, id);
   },
 };

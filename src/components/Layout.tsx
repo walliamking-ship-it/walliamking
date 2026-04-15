@@ -6,6 +6,8 @@ import { usePathname } from 'next/navigation';
 const navItems = [
   { href: '/customers', label: '客户管理' },
   { href: '/vendors', label: '供应商管理' },
+  { href: '/sales-orders', label: '销售订单' },
+  { href: '/purchase-orders', label: '采购订单' },
   { href: '/materials', label: '物料管理' },
   { href: '/products', label: '产品管理' },
   { href: '/processes', label: '工艺管理' },
