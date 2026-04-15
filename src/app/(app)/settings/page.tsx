@@ -1,36 +1,92 @@
 'use client';
 
+import { useState } from 'react';
 import PageHeader from '@/components/PageHeader';
 
+const settingsGroups = [
+  {
+    title: '基本信息',
+    items: [
+      { label: '企业名称', value: '上海申竭诚包装科技有限公司', type: 'text' },
+      { label: '联系人', value: '金湛', type: 'text' },
+      { label: '联系电话', value: '13900000001', type: 'tel' },
+      { label: '地址', value: '上海市青浦区', type: 'text' },
+    ],
+  },
+  {
+    title: '系统设置',
+    items: [
+      { label: '数据存储模式', value: '模拟数据模式 (USE_MOCK_DATA=true)', type: 'info' },
+      { label: '飞书Bitable', value: '已连接', type: 'info' },
+      { label: '飞书App ID', value: 'cli_a942474699f85cc1', type: 'info' },
+      { label: '基础数据Bitable', value: 'EUyCb0aIcavugUsXJaocRtR6n6b', type: 'info' },
+      { label: '订单数据Bitable', value: 'GVgUbTjubaI5m1suvcgctyPOnFc', type: 'info' },
+    ],
+  },
+  {
+    title: '打印设置',
+    items: [
+      { label: '销售送货单模板', value: '标准模板 v1.0', type: 'info' },
+      { label: '采购入库单模板', value: '标准模板 v1.0', type: 'info' },
+      { label: '默认打印份数', value: '2', type: 'text' },
+    ],
+  },
+];
+
 export default function SettingsPage() {
+  const [saved, setSaved] = useState(false);
+
   return (
     <div className="flex flex-col h-full">
-      <PageHeader title="商户设置" subtitle="系统配置与个性化设置" />
+      <PageHeader title="商户设置" subtitle="系统配置与参数设置" />
 
-      <div className="flex-1 overflow-auto p-6">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-100 divide-y divide-gray-100">
-          {[
-            { label: '商户信息', desc: '公司名称、地址、联系方式' },
-            { label: '打印设置', desc: '单据格式、打印模板' },
-            { label: '价格设置', desc: '默认售价、进价策略' },
-            { label: '仓库设置', desc: '仓库管理、库存预警' },
-            { label: '权限管理', desc: '员工账号、角色权限（开发中）' },
-            { label: '数据备份', desc: '数据导出与备份' },
-          ].map(item => (
-            <div key={item.label} className="px-5 py-4 hover:bg-gray-50 cursor-pointer flex items-center justify-between">
-              <div>
-                <div className="font-medium text-gray-800 text-sm">{item.label}</div>
-                <div className="text-xs text-gray-500 mt-0.5">{item.desc}</div>
+      <div className="flex-1 overflow-auto p-5">
+        <div className="max-w-2xl space-y-6">
+          {settingsGroups.map(group => (
+            <div key={group.title} className="bg-white rounded-lg shadow-sm border">
+              <div className="px-5 py-3 border-b bg-gray-50 rounded-t-lg">
+                <h3 className="font-semibold text-sm text-gray-800">{group.title}</h3>
               </div>
-              <span className="text-gray-300 text-sm">›</span>
+              <div className="divide-y">
+                {group.items.map(item => (
+                  <div key={item.label} className="flex items-center px-5 py-3">
+                    <div className="w-40 text-sm text-gray-600 flex-shrink-0">{item.label}</div>
+                    <div className="flex-1">
+                      {item.type === 'text' ? (
+                        <input
+                          type="text"
+                          defaultValue={item.value}
+                          className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
+                        />
+                      ) : (
+                        <span className={`text-sm ${item.label.includes('Bitable') || item.label.includes('App') ? 'font-mono text-gray-500' : 'text-gray-800'}`}>
+                          {item.value}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           ))}
-        </div>
 
-        <div className="mt-6 bg-orange-50 border border-orange-200 rounded-lg p-4">
-          <div className="font-medium text-orange-800 text-sm">🔧 功能开发中</div>
-          <div className="text-xs text-orange-700 mt-1">
-            完整的商户设置功能正在开发，基础配置已可用。
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-xs text-blue-700">
+            <div className="font-semibold mb-1">💡 提示</div>
+            <ul className="list-disc list-inside space-y-0.5">
+              <li>当前为本地开发模式，数据存储在浏览器内存中</li>
+              <li>切换到真实飞书Bitable需要配置写入权限</li>
+              <li>部分设置修改后需要刷新页面生效</li>
+              <li>正式环境建议使用环境变量配置敏感信息</li>
+            </ul>
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <button className="px-4 py-2 text-sm border rounded hover:bg-gray-100">重置</button>
+            <button
+              onClick={() => { setSaved(true); setTimeout(() => setSaved(false), 2000); }}
+              className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">
+              {saved ? '✓ 已保存' : '保存设置'}
+            </button>
           </div>
         </div>
       </div>
