@@ -15,6 +15,7 @@ interface FilterTab {
   active?: boolean;
   count?: number;
   onClick?: () => void;
+  className?: string;
 }
 
 interface PageHeaderProps {
@@ -103,7 +104,7 @@ export default function PageHeader({
                 <button
                   key={i}
                   onClick={tab.onClick}
-                  className={`px-3 py-1 rounded text-sm transition-colors ${
+                  className={`px-3 py-1 rounded text-sm transition-colors ${tab.className || ''} ${
                     tab.active
                       ? 'bg-blue-600 text-white'
                       : 'text-gray-600 hover:bg-gray-100'

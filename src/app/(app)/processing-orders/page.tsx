@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import PageHeader from '@/components/PageHeader';
 import OrderTable, { Column } from '@/components/OrderTable';
 import StatusBadge, { MoneyCell, DateCell } from '@/components/StatusBadge';
+import CsvImportModal from '@/components/CsvImportModal';
 import { ProcessingOrder } from '@/lib/types';
 import { ProcessingOrderRepo } from '@/lib/repo';
 
@@ -143,6 +144,7 @@ export default function ProcessingOrdersPage() {
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Partial<ProcessingOrder> | undefined>();
+  const [importModalOpen, setImportModalOpen] = useState(false);
 
   const loadData = async () => { setLoading(true); try { setData(await ProcessingOrderRepo.findAll()); } finally { setLoading(false); } };
   useEffect(() => { loadData(); }, []);
@@ -157,6 +159,32 @@ export default function ProcessingOrdersPage() {
     else await ProcessingOrderRepo.create(form as Omit<ProcessingOrder, 'id'>);
     await loadData();
     setEditingItem(undefined);
+  };
+
+  const handleCsvImport = async (rows: Record<string, string>[]) => {
+    for (const row of rows) {
+      const no = row['单号'] || row['编号'] || '';
+      const company = row['加工公司'] || '';
+      if (!no || !company) continue;
+      const existing = data.find(p => p.单号 === no);
+      const fields = {
+        单号: no, 加工公司: company,
+        加工工序: row['加工工序'] || '', 日期: row['日期'] || '',
+        计划入库日期: row['计划入库日期'] || '',
+        实际应付: parseFloat(row['实际应付'] || '0') || 0,
+        已收货: parseFloat(row['已收货'] || '0') || 0,
+        未付款: parseFloat(row['未付款'] || '0') || 0,
+        已付款: parseFloat(row['已付款'] || '0') || 0,
+        付款状态: (row['付款状态'] || '未付款') as '未付款' | '部分付款' | '全部付款',
+        收货状态: (row['收货状态'] || '未收货') as '未收货' | '部分收货' | '全部收货',
+        制单人: row['制单人'] || '', 业务员: row['业务员'] || '',
+        加工地址: row['加工地址'] || '', 备注: row['备注'] || '',
+        云仓状态: '', 总箱数: 0, 总体积: 0, 总重量: 0, 入库状态: '', 出库状态: '',
+      };
+      if (existing) await ProcessingOrderRepo.update(existing.id, fields);
+      else await ProcessingOrderRepo.create(fields as Omit<ProcessingOrder, 'id'>);
+    }
+    await loadData();
   };
 
   const handleEdit = (item: ProcessingOrder) => { setEditingItem(item); setModalOpen(true); };
@@ -175,13 +203,27 @@ export default function ProcessingOrdersPage() {
   return (
     <div className="flex flex-col h-full">
       <PageHeader title="加工单" searchPlaceholder="搜索 单号 / 加工公司 / 工序 / 制单人 / 业务员 / 备注..." onSearch={setSearch}
-        actions={[{ label: '新建加工单', icon: '＋', variant: 'primary' as const, onClick: () => { setEditingItem({}); setModalOpen(true); } }, { label: '批量操作', onClick: () => alert('批量操作功能开发中') }]} />
+        actions={[
+          { label: '新建加工单', icon: '＋', variant: 'primary' as const, onClick: () => { setEditingItem({}); setModalOpen(true); } },
+          { label: '导入CSV', icon: '↓', variant: 'default' as const, onClick: () => setImportModalOpen(true) },
+          { label: '导出CSV', icon: '↑', variant: 'default' as const, onClick: () => {
+            const csv = ['单号,加工公司,加工工序,日期,计划入库日期,实际应付,已收货,已付款,未付款,付款状态,收货状态,制单人,业务员,加工地址,备注',
+              ...filtered.map(p => `${p.单号},${p.加工公司},${p.加工工序 || ''},${p.日期},${p.计划入库日期 || ''},${p.实际应付 || 0},${p.已收货 || 0},${p.已付款 || 0},${p.未付款 || 0},${p.付款状态},${p.收货状态},${p.制单人},${p.业务员},${p.加工地址 || ''},${p.备注 || ''}`)].join('\n');
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url; a.download = `加工单_${new Date().toISOString().slice(0,10)}.csv`; a.click();
+            URL.revokeObjectURL(url);
+          } },
+        ]} />
       <div className="flex-1 overflow-auto bg-white">
         <OrderTable columns={tableColumns} data={filtered} loading={loading} emptyMessage="暂无加工单"
           onRowClick={item => handleEdit(item)}
           renderOrderNumber={item => <span className="text-blue-600 font-mono text-xs hover:underline">{item.单号}</span>} />
       </div>
       <FormModal open={modalOpen} onClose={() => { setModalOpen(false); setEditingItem(undefined); }} onSave={handleSave} initial={editingItem} />
+      <CsvImportModal open={importModalOpen} onClose={() => setImportModalOpen(false)} onImport={handleCsvImport}
+        headers={['单号', '加工公司', '加工工序', '日期', '计划入库日期', '实际应付', '已收货', '已付款', '付款状态', '收货状态', '制单人', '业务员', '加工地址', '备注']}
+        fields={['单号', '加工公司', '加工工序', '日期', '计划入库日期', '实际应付', '已收货', '已付款', '付款状态', '收货状态', '制单人', '业务员', '加工地址', '备注']} />
     </div>
   );
 }

@@ -122,6 +122,8 @@ export interface Inventory {
   采购在途: number;
   销售在途: number;
   备注: string;
+  参考进价?: number;
+  参考售价?: number;
 }
 
 // ========== 加工单 ==========

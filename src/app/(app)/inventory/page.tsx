@@ -110,13 +110,17 @@ export default function InventoryPage() {
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Partial<Inventory> | undefined>();
+  const [filterTab, setFilterTab] = useState<'all' | 'alert' | 'normal'>('all');
 
   const loadData = async () => { setLoading(true); try { setData(await InventoryRepo.findAll()); } finally { setLoading(false); } };
   useEffect(() => { loadData(); }, []);
 
   const filtered = data.filter(item => {
     const q = search.toLowerCase();
-    return !q || [item.产品名称, item.货号, item.分类, item.单位, item.备注].some(v => v?.toLowerCase().includes(q));
+    const matchSearch = !q || [item.产品名称, item.货号, item.分类, item.单位, item.备注].some(v => v?.toLowerCase().includes(q));
+    const below = (item.当前库存 || 0) < (item.安全库存 || 0);
+    const matchFilter = filterTab === 'all' || (filterTab === 'alert' && below) || (filterTab === 'normal' && !below);
+    return matchSearch && matchFilter;
   });
 
   const handleSave = async (form: Partial<Inventory>) => {
@@ -129,8 +133,38 @@ export default function InventoryPage() {
   const handleEdit = (item: Inventory) => { setEditingItem(item); setModalOpen(true); };
   const handleDelete = async (id: string) => { if (!confirm('确定删除该库存记录？')) return; await InventoryRepo.delete(id); await loadData(); };
 
+  // Stats
+  const totalItems = data.length;
+  const alertItems = data.filter(i => (i.当前库存 || 0) < (i.安全库存 || 0)).length;
+  const normalItems = totalItems - alertItems;
+  const lowItems = data.filter(i => (i.当前库存 || 0) < (i.安全库存 || 0) * 0.5).length;
+
+  const stockColumn = columns.find(c => c.key === '当前库存');
+  const alertColumns: Column<Inventory>[] = columns.map(col => {
+    if (col.key === '当前库存') {
+      return {
+        ...col,
+        render: (item: Inventory) => {
+          const current = item.当前库存 || 0;
+          const safe = item.安全库存 || 0;
+          const below = current < safe;
+          const critical = current < safe * 0.5;
+          return (
+            <div className="flex items-center gap-1">
+              {below && <span className="text-red-500 text-xs" title="低于安全库存">⚠️</span>}
+              <span className={below ? (critical ? 'text-red-600 font-bold' : 'text-orange-500 font-semibold') : 'text-gray-800'}>
+                {current.toLocaleString()}
+              </span>
+            </div>
+          );
+        },
+      };
+    }
+    return col;
+  });
+
   const tableColumns: Column<Inventory>[] = [
-    ...columns,
+    ...alertColumns,
     { key: 'actions', label: '操作', render: (item) => (
       <div className="flex gap-1">
         <button onClick={(e) => { e.stopPropagation(); handleEdit(item); }} className="px-2 py-0.5 text-xs border rounded hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600">编辑</button>
@@ -141,8 +175,38 @@ export default function InventoryPage() {
 
   return (
     <div className="flex flex-col h-full">
+      {/* 预警统计卡片 */}
+      <div className="grid grid-cols-4 gap-4 px-5 py-3 bg-white border-b">
+        <div className={`p-3 rounded-lg border ${alertItems > 0 ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'}`}>
+          <div className="text-xs text-gray-500">库存预警</div>
+          <div className={`text-xl font-bold mt-1 ${alertItems > 0 ? 'text-red-600' : 'text-gray-400'}`}>{alertItems}</div>
+          {alertItems > 0 && <div className="text-xs text-red-500 mt-0.5">低于安全库存</div>}
+        </div>
+        <div className="p-3 rounded-lg border bg-orange-50 border-orange-200">
+          <div className="text-xs text-gray-500">严重不足</div>
+          <div className={`text-xl font-bold mt-1 ${lowItems > 0 ? 'text-orange-600' : 'text-gray-400'}`}>{lowItems}</div>
+          {lowItems > 0 && <div className="text-xs text-orange-500 mt-0.5">低于安全库存50%</div>}
+        </div>
+        <div className="p-3 rounded-lg border bg-green-50 border-green-200">
+          <div className="text-xs text-gray-500">库存正常</div>
+          <div className="text-xl font-bold text-green-600 mt-1">{normalItems}</div>
+        </div>
+        <div className="p-3 rounded-lg border bg-gray-50 border-gray-200">
+          <div className="text-xs text-gray-500">库存总计</div>
+          <div className="text-xl font-bold text-gray-800 mt-1">{totalItems}</div>
+        </div>
+      </div>
+
       <PageHeader title="库存管理" searchPlaceholder="搜索 产品名称 / 货号 / 分类 / 备注..." onSearch={setSearch}
-        actions={[{ label: '新建库存', icon: '＋', variant: 'primary' as const, onClick: () => { setEditingItem({}); setModalOpen(true); } }, { label: '批量操作', onClick: () => alert('批量操作功能开发中') }]} />
+        actions={[
+          { label: '新建库存', icon: '＋', variant: 'primary' as const, onClick: () => { setEditingItem({}); setModalOpen(true); } },
+          { label: '批量操作', onClick: () => alert('批量操作功能开发中') },
+        ]}
+        tabs={[
+          { label: `全部 (${totalItems})`, active: filterTab === 'all', onClick: () => setFilterTab('all') },
+          { label: `⚠️ 预警 (${alertItems})`, active: filterTab === 'alert', onClick: () => setFilterTab('alert'), className: alertItems > 0 ? 'text-red-600' : '' },
+          { label: `正常 (${normalItems})`, active: filterTab === 'normal', onClick: () => setFilterTab('normal') },
+        ]} />
       <div className="flex-1 overflow-auto bg-white">
         <OrderTable columns={tableColumns} data={filtered} loading={loading} emptyMessage="暂无库存数据"
           onRowClick={item => handleEdit(item)}

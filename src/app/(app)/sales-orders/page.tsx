@@ -5,6 +5,7 @@ import PageHeader from '@/components/PageHeader';
 import OrderTable, { Column } from '@/components/OrderTable';
 import StatusBadge, { MoneyCell, DateCell } from '@/components/StatusBadge';
 import PrintTemplate from '@/components/PrintTemplate';
+import CsvImportModal from '@/components/CsvImportModal';
 import { SalesOrder } from '@/lib/types';
 import { SalesOrderRepo } from '@/lib/repo';
 
@@ -160,6 +161,7 @@ export default function SalesOrdersPage() {
   const [editingItem, setEditingItem] = useState<Partial<SalesOrder> | undefined>();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [printOrder, setPrintOrder] = useState<SalesOrder | null>(null);
+  const [importModalOpen, setImportModalOpen] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -193,6 +195,30 @@ export default function SalesOrdersPage() {
     setEditingItem(undefined);
   };
 
+  const handleCsvImport = async (rows: Record<string, string>[]) => {
+    for (const row of rows) {
+      const no = row['单号'] || row['编号'] || '';
+      const customer = row['客户名称'] || row['客户'] || '';
+      if (!no || !customer) continue;
+      const existing = data.find(s => s.单号 === no);
+      const fields = {
+        单号: no, 客户名称: customer,
+        日期: row['日期'] || '', 计划收款日期: row['计划收款日期'] || '',
+        合同金额: parseFloat(row['合同金额'] || '0') || 0,
+        已送货: parseFloat(row['已送货'] || '0') || 0,
+        已收款: parseFloat(row['已收款'] || '0') || 0,
+        未收款项: parseFloat(row['未收款项'] || '0') || 0,
+        收款状态: (row['收款状态'] || '未收款') as '未收款' | '部分收款' | '全部收款',
+        送货状态: (row['送货状态'] || '未送货') as '未送货' | '部分送货' | '全部送货',
+        制单人: row['制单人'] || '', 业务员: row['业务员'] || '',
+        备注: row['备注'] || '',
+      };
+      if (existing) await SalesOrderRepo.update(existing.id, fields);
+      else await SalesOrderRepo.create(fields as Omit<SalesOrder, 'id'>);
+    }
+    await loadData();
+  };
+
   const handleEdit = (item: SalesOrder) => {
     setEditingItem(item);
     setModalOpen(true);
@@ -219,7 +245,15 @@ export default function SalesOrdersPage() {
         onSearch={setSearch}
         actions={[
           { label: '新建销售单', icon: '＋', variant: 'primary' as const, onClick: () => { setEditingItem({}); setModalOpen(true); } },
-          { label: '批量操作', onClick: () => alert('批量操作功能开发中') },
+          { label: '导入CSV', icon: '↓', variant: 'default' as const, onClick: () => setImportModalOpen(true) },
+          { label: '导出CSV', icon: '↑', variant: 'default' as const, onClick: () => {
+            const csv = ['单号,客户名称,日期,合同金额,已送货,未收款项,已收款,收款状态,送货状态,制单人,业务员,计划收款日期,备注',
+              ...filtered.map(s => `${s.单号},${s.客户名称},${s.日期},${s.合同金额},${s.已送货},${s.未收款项 || 0},${s.已收款},${s.收款状态},${s.送货状态},${s.制单人},${s.业务员},${s.计划收款日期 || ''},${s.备注 || ''}`)].join('\n');
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url; a.download = `销售订单_${new Date().toISOString().slice(0,10)}.csv`; a.click();
+            URL.revokeObjectURL(url);
+          } },
         ]}
         tabs={tabs}
       />
@@ -320,6 +354,10 @@ export default function SalesOrdersPage() {
           </div>
         </div>
       )}
+
+      <CsvImportModal open={importModalOpen} onClose={() => setImportModalOpen(false)} onImport={handleCsvImport}
+        headers={['单号', '客户名称', '日期', '合同金额', '已送货', '已收款', '收款状态', '送货状态', '制单人', '业务员', '计划收款日期', '备注']}
+        fields={['单号', '客户名称', '日期', '合同金额', '已送货', '已收款', '收款状态', '送货状态', '制单人', '业务员', '计划收款日期', '备注']} />
     </div>
   );
 }
