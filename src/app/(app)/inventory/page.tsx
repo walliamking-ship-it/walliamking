@@ -111,6 +111,8 @@ export default function InventoryPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Partial<Inventory> | undefined>();
   const [filterTab, setFilterTab] = useState<'all' | 'alert' | 'normal'>('all');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBatchConfirm, setShowBatchConfirm] = useState(false);
 
   const loadData = async () => { setLoading(true); try { setData(await InventoryRepo.findAll()); } finally { setLoading(false); } };
   useEffect(() => { loadData(); }, []);
@@ -131,7 +133,42 @@ export default function InventoryPage() {
   };
 
   const handleEdit = (item: Inventory) => { setEditingItem(item); setModalOpen(true); };
-  const handleDelete = async (id: string) => { if (!confirm('确定删除该库存记录？')) return; await InventoryRepo.delete(id); await loadData(); };
+  
+  const handleDelete = async (id: string) => { 
+    if (!confirm('确定删除该库存记录？')) return; 
+    await InventoryRepo.delete(id); 
+    await loadData(); 
+  };
+
+  // 批量选择
+  const toggleSelect = (id: string) => {
+    const newSet = new Set(selectedIds);
+    if (newSet.has(id)) newSet.delete(id);
+    else newSet.add(id);
+    setSelectedIds(newSet);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filtered.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filtered.map(i => i.id)));
+    }
+  };
+
+  const handleBatchDelete = async () => {
+    if (selectedIds.size === 0) return;
+    setShowBatchConfirm(true);
+  };
+
+  const confirmBatchDelete = async () => {
+    for (const id of selectedIds) {
+      await InventoryRepo.delete(id);
+    }
+    setSelectedIds(new Set());
+    setShowBatchConfirm(false);
+    await loadData();
+  };
 
   // Stats
   const totalItems = data.length;
@@ -148,7 +185,7 @@ export default function InventoryPage() {
           const current = item.当前库存 || 0;
           const safe = item.安全库存 || 0;
           const below = current < safe;
-          const critical = current < safe * 0.5;
+          const critical = safe > 0 && current < safe * 0.5;
           return (
             <div className="flex items-center gap-1">
               {below && <span className="text-red-500 text-xs" title="低于安全库存">⚠️</span>}
@@ -163,7 +200,30 @@ export default function InventoryPage() {
     return col;
   });
 
+  // 添加选择列
+  const selectColumn: Column<Inventory> = {
+    key: 'select',
+    label: (
+      <input 
+        type="checkbox" 
+        checked={filtered.length > 0 && selectedIds.size === filtered.length}
+        onChange={toggleSelectAll}
+        className="w-4 h-4 rounded"
+      />
+    ),
+    render: (item: Inventory) => (
+      <input 
+        type="checkbox" 
+        checked={selectedIds.has(item.id)}
+        onChange={() => toggleSelect(item.id)}
+        className="w-4 h-4 rounded"
+        onClick={e => e.stopPropagation()}
+      />
+    ),
+  };
+
   const tableColumns: Column<Inventory>[] = [
+    selectColumn,
     ...alertColumns,
     { key: 'actions', label: '操作', render: (item) => (
       <div className="flex gap-1">
@@ -197,10 +257,30 @@ export default function InventoryPage() {
         </div>
       </div>
 
+      {/* 批量操作栏 */}
+      {selectedIds.size > 0 && (
+        <div className="px-5 py-2 bg-blue-50 border-b flex items-center justify-between">
+          <span className="text-sm text-blue-700">已选择 <strong>{selectedIds.size}</strong> 项</span>
+          <div className="flex gap-2">
+            <button 
+              onClick={() => { setSelectedIds(new Set()); }}
+              className="px-3 py-1 text-xs border border-gray-300 rounded hover:bg-gray-100"
+            >
+              取消选择
+            </button>
+            <button 
+              onClick={handleBatchDelete}
+              className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
+            >
+              批量删除 ({selectedIds.size})
+            </button>
+          </div>
+        </div>
+      )}
+
       <PageHeader title="库存管理" searchPlaceholder="搜索 产品名称 / 货号 / 分类 / 备注..." onSearch={setSearch}
         actions={[
           { label: '新建库存', icon: '＋', variant: 'primary' as const, onClick: () => { setEditingItem({}); setModalOpen(true); } },
-          { label: '批量操作', onClick: () => alert('批量操作功能开发中') },
         ]}
         tabs={[
           { label: `全部 (${totalItems})`, active: filterTab === 'all', onClick: () => setFilterTab('all') },
@@ -213,6 +293,32 @@ export default function InventoryPage() {
           renderOrderNumber={item => <span className="text-blue-600 font-mono text-xs hover:underline">{item.货号}</span>} />
       </div>
       <FormModal open={modalOpen} onClose={() => { setModalOpen(false); setEditingItem(undefined); }} onSave={handleSave} initial={editingItem} />
+
+      {/* 批量删除确认 */}
+      {showBatchConfirm && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+            <h3 className="text-lg font-semibold mb-4">确认批量删除</h3>
+            <p className="text-gray-600 mb-6">
+              确定要删除选中的 <strong>{selectedIds.size}</strong> 项库存记录吗？此操作不可撤销。
+            </p>
+            <div className="flex justify-end gap-3">
+              <button 
+                onClick={() => setShowBatchConfirm(false)}
+                className="px-4 py-2 text-sm border rounded hover:bg-gray-100"
+              >
+                取消
+              </button>
+              <button 
+                onClick={confirmBatchDelete}
+                className="px-4 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700"
+              >
+                确认删除
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

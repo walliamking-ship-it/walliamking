@@ -3,7 +3,9 @@
 import { useState, useEffect } from 'react';
 import PageHeader from '@/components/PageHeader';
 import { resetAllData } from '@/lib/localData';
-import { getItem, STORAGE_KEYS } from '@/lib/storage';
+import { getItem, setItem, STORAGE_KEYS } from '@/lib/storage';
+import { Employee, ROLES, RoleKey } from '@/lib/types';
+import { EmployeeRepo } from '@/lib/repo';
 
 const settingsGroups = [
   {
@@ -46,11 +48,32 @@ const settingsGroups = [
 export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
   const [lastSync, setLastSync] = useState<string>('');
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string>('1');
 
   useEffect(() => {
     const stored = getItem<string>(STORAGE_KEYS.lastSync, '');
     setLastSync(stored);
+
+    // Load employees and current user
+    EmployeeRepo.findAll().then(emps => {
+      setEmployees(emps);
+      const storedUserId = getItem<string>(STORAGE_KEYS.currentUser, '1');
+      // Verify stored user still exists
+      if (emps.find(e => e.id === storedUserId)) {
+        setCurrentUserId(storedUserId);
+      }
+    });
   }, []);
+
+  const currentEmployee = employees.find(e => e.id === currentUserId) || employees[0];
+  const currentRole = currentEmployee ? ROLES.find(r => r.key === currentEmployee.roleKey) : undefined;
+
+  const handleSwitchUser = (emp: Employee) => {
+    setCurrentUserId(emp.id);
+    setItem(STORAGE_KEYS.currentUser, emp.id);
+    alert(`已切换为：${emp.name}（${currentRole?.name || emp.roleKey}）\n\n请刷新页面查看权限变化。`);
+  };
 
   const handleResetData = () => {
     if (!confirm('确定重置所有数据？此操作不可恢复！\n\n将清除所有本地数据并恢复为秒账默认数据。')) return;
@@ -103,6 +126,72 @@ export default function SettingsPage() {
               </div>
             </div>
           ))}
+
+          {/* 模拟多用户切换 */}
+          <div className="bg-white rounded-lg shadow-sm border">
+            <div className="px-5 py-3 border-b bg-gray-50 rounded-t-lg">
+              <h3 className="font-semibold text-sm text-gray-800">🔄 模拟多用户切换</h3>
+            </div>
+            <div className="p-5 space-y-4">
+              {/* 当前登录用户 */}
+              {currentEmployee && (
+                <div className="bg-blue-50 border border-blue-200 rounded p-3 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
+                    {currentEmployee.name.charAt(0)}
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-sm font-semibold text-gray-800">{currentEmployee.name}</div>
+                    <div className="text-xs text-blue-600 mt-0.5">
+                      {currentRole?.name || currentEmployee.roleKey} · {currentRole?.description || ''}
+                    </div>
+                  </div>
+                  <span className="text-xs text-blue-500 font-medium bg-blue-100 px-2 py-0.5 rounded">当前登录</span>
+                </div>
+              )}
+
+              <div className="text-xs text-gray-500">点击下方员工卡片切换登录身份（用于权限测试）：</div>
+              <div className="grid grid-cols-2 gap-2">
+                {employees.filter(e => e.status === '正常').map(emp => {
+                  const role = ROLES.find(r => r.key === emp.roleKey);
+                  const isActive = emp.id === currentUserId;
+                  return (
+                    <button
+                      key={emp.id}
+                      onClick={() => handleSwitchUser(emp)}
+                      className={`text-left px-3 py-2 rounded border text-xs transition-all ${
+                        isActive
+                          ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-400'
+                          : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50/50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 ${isActive ? 'bg-blue-600' : 'bg-gray-400'}`}>
+                          {emp.name.charAt(0)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-gray-700 truncate">{emp.name}</div>
+                          <div className="text-gray-400 truncate">{role?.name || emp.roleKey}</div>
+                        </div>
+                        {isActive && <span className="text-blue-500 text-xs">✓</span>}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* 当前用户权限预览 */}
+              {currentEmployee && currentRole && (
+                <div>
+                  <div className="text-xs font-medium text-gray-700 mb-2">当前用户权限（{currentRole.name}）：</div>
+                  <div className="flex flex-wrap gap-1">
+                    {currentRole.permissions.map(perm => (
+                      <span key={perm} className="px-1.5 py-0.5 bg-green-50 text-green-700 rounded text-xs">{perm}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
 
           {/* 数据管理 */}
           <div className="bg-white rounded-lg shadow-sm border">

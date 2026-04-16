@@ -5,7 +5,7 @@ import StatusBadge, { MoneyCell, DateCell } from './StatusBadge';
 
 export interface Column<T> {
   key: string;
-  label: string;
+  label: string | React.ReactNode;
   sortable?: boolean;
   width?: string;
   render?: (item: T) => React.ReactNode;
@@ -24,6 +24,10 @@ interface OrderTableProps<T extends { id: string }> {
   emptyMessage?: string;
   /** 每页条数 */
   pageSize?: number;
+  /** 当前展开的行ID */
+  expandedId?: string | null;
+  /** 渲染展开的子行内容 */
+  renderExpanded?: (item: T) => React.ReactNode;
 }
 
 export default function OrderTable<T extends { id: string }>({
@@ -35,6 +39,8 @@ export default function OrderTable<T extends { id: string }>({
   loading,
   emptyMessage = '暂无数据',
   pageSize = 100,
+  expandedId,
+  renderExpanded,
 }: OrderTableProps<T>) {
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
@@ -87,7 +93,7 @@ export default function OrderTable<T extends { id: string }>({
                   onClick={() => col.sortable && handleSort(col.key)}
                 >
                   <div className="flex items-center gap-1">
-                    {col.label}
+                    <span>{col.label}</span>
                     {col.sortable && sortKey === col.key && (
                       <span className="text-blue-500">{sortDir === 'asc' ? '↑' : '↓'}</span>
                     )}
@@ -108,11 +114,12 @@ export default function OrderTable<T extends { id: string }>({
               </tr>
             ) : (
               paged.map((item, idx) => (
-                <tr
-                  key={item.id}
-                  className={`border-b border-gray-100 hover:bg-blue-50/30 transition-colors cursor-default ${onRowClick ? 'cursor-pointer' : ''}`}
-                  onClick={() => onRowClick?.(item)}
-                >
+                <>
+                  <tr
+                    key={item.id}
+                    className={`border-b border-gray-100 hover:bg-blue-50/30 transition-colors ${onRowClick ? 'cursor-pointer' : ''} ${expandedId === item.id ? 'bg-blue-50' : ''}`}
+                    onClick={() => onRowClick?.(item)}
+                  >
                   {columns.map(col => (
                     <td key={col.key} className="px-3 py-2.5 text-sm">
                       {col.key === '单号' && renderOrderNumber ? (
@@ -136,6 +143,14 @@ export default function OrderTable<T extends { id: string }>({
                     </td>
                   ))}
                 </tr>
+                  {expandedId === item.id && renderExpanded && (
+                    <tr key={`${item.id}-expanded`} className="border-b border-gray-200 bg-gray-50">
+                      <td colSpan={columns.length} className="p-0">
+                        {renderExpanded(item)}
+                      </td>
+                    </tr>
+                  )}
+                </>
               ))
             )}
           </tbody>

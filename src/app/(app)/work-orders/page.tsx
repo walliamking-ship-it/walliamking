@@ -1,0 +1,341 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import PageHeader from '@/components/PageHeader';
+import OrderTable, { Column } from '@/components/OrderTable';
+import StatusBadge from '@/components/StatusBadge';
+import { WorkOrder, WorkOrderProcess, SalesOrder, Product, Process } from '@/lib/types';
+import { WorkOrderRepo, SalesOrderRepo, ProductRepo, ProcessRepo } from '@/lib/repo';
+
+function generateWorkOrderNo(): string {
+  const today = new Date();
+  const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
+  const seq = String(Math.floor(Math.random() * 900) + 100);
+  return `SG${dateStr}${seq}`;
+}
+
+const defaultProcess = (): WorkOrderProcess => ({
+  序号: 1,
+  工序名称: '',
+  执行单位: '',
+  计划数量: 0,
+  已完成数量: 0,
+  状态: '待报工',
+});
+
+function WorkOrderFormModal({ open, onClose, onSave, initial, salesOrders, products, processes }: {
+  open: boolean; onClose: () => void;
+  onSave: (item: Omit<WorkOrder, 'id'>) => void;
+  initial?: WorkOrder;
+  salesOrders: SalesOrder[];
+  products: Product[];
+  processes: Process[];
+}) {
+  const [form, setForm] = useState({
+    单号: '', 关联销售订单id: '', 关联销售订单号: '', 产品名称: '', 物料编码: '',
+    规格: '', 单位: '', 计划数量: 0, 已完成数量: 0,
+    生产单位: 'external' as 'internal' | 'external',
+    执行单位: '', 工序列表: [] as WorkOrderProcess[],
+    状态: '待生产' as WorkOrder['状态'],
+    计划开始日期: '', 计划完成日期: '', 实际开始日期: '', 实际完成日期: '',
+    备注: '', 制单人: '李紫璘', 创建时间: new Date().toISOString(),
+  });
+  const [processesText, setProcessesText] = useState('');
+
+  useEffect(() => {
+    if (open) {
+      if (initial?.id) {
+        setForm({
+          单号: initial.单号, 关联销售订单id: initial.关联销售订单id || '',
+          关联销售订单号: initial.关联销售订单号 || '', 产品名称: initial.产品名称,
+          物料编码: initial.物料编码, 规格: initial.规格, 单位: initial.单位,
+          计划数量: initial.计划数量, 已完成数量: initial.已完成数量,
+          生产单位: initial.生产单位, 执行单位: initial.执行单位,
+          工序列表: initial.工序列表, 状态: initial.状态,
+          计划开始日期: initial.计划开始日期, 计划完成日期: initial.计划完成日期,
+          实际开始日期: initial.实际开始日期 || '', 实际完成日期: initial.实际完成日期 || '',
+          备注: initial.备注, 制单人: initial.制单人, 创建时间: initial.创建时间,
+        });
+        setProcessesText(initial.工序列表.map(p => p.工序名称).join('、'));
+      } else {
+        setForm({ 单号: generateWorkOrderNo(), 关联销售订单id: '', 关联销售订单号: '', 产品名称: '', 物料编码: '', 规格: '', 单位: '', 计划数量: 0, 已完成数量: 0, 生产单位: 'external', 执行单位: '', 工序列表: [], 状态: '待生产', 计划开始日期: '', 计划完成日期: '', 实际开始日期: '', 实际完成日期: '', 备注: '', 制单人: '李紫璘', 创建时间: new Date().toISOString() });
+        setProcessesText('');
+      }
+    }
+  }, [open, initial]);
+
+  const updateField = (k: string, v: any) => setForm(f => ({ ...f, [k]: v }));
+
+  const handleSoChange = (id: string) => {
+    const so = salesOrders.find(s => s.id === id);
+    setForm(f => ({ ...f, 关联销售订单id: id, 关联销售订单号: so?.单号 || '' }));
+  };
+
+  const handleProductChange = (id: string) => {
+    const prod = products.find(p => p.id === id);
+    if (prod) {
+      setForm(f => ({ ...f, 产品名称: prod.name, 物料编码: prod.code, 规格: prod.spec, 单位: prod.unit }));
+    }
+  };
+
+  const handleProcessesChange = (text: string) => {
+    setProcessesText(text);
+    const names = text.split('、').map(s => s.trim()).filter(Boolean);
+    const existingMap = new Map(form.工序列表.map(p => [p.工序名称, p]));
+    const newList: WorkOrderProcess[] = names.map((name, idx) => {
+      const existing = existingMap.get(name);
+      if (existing) return existing;
+      return { 序号: idx + 1, 工序名称: name, 执行单位: form.执行单位, 计划数量: form.计划数量, 已完成数量: 0, 状态: '待报工' as const };
+    });
+    setForm(f => ({ ...f, 工序列表: newList }));
+  };
+
+  if (!open) return null;
+
+  const handleSave = () => {
+    if (!form.产品名称) { alert('请选择或填写产品'); return; }
+    onSave(form as Omit<WorkOrder, 'id'>);
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-auto">
+        <div className="px-5 py-3 border-b flex items-center justify-between">
+          <h2 className="text-base font-semibold">{initial?.id ? '编辑施工单' : '新建施工单'}</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
+        </div>
+        <div className="p-5 space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-gray-500 mb-0.5">单号</label>
+              <input type="text" value={form.单号} readOnly className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm bg-gray-100" />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-0.5">关联销售订单</label>
+              <select value={form.关联销售订单id} onChange={e => handleSoChange(e.target.value)}
+                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none bg-white">
+                <option value="">不关联</option>
+                {salesOrders.map(s => <option key={s.id} value={s.id}>{s.单号} - {s.客户名称}</option>)})
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-0.5">产品（从产品列表选择）</label>
+              <select value='' onChange={e => handleProductChange(e.target.value)}
+                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none bg-white">
+                <option value="">请选择产品</option>
+                {products.map(p => <option key={p.id} value={p.id}>{p.name} ({p.code})</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-0.5">产品名称</label>
+              <input type="text" value={form.产品名称} onChange={e => updateField('产品名称', e.target.value)}
+                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" placeholder="手动填写或自动带出" />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-0.5">物料编码</label>
+              <input type="text" value={form.物料编码} readOnly className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm bg-gray-100" />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-0.5">规格</label>
+              <input type="text" value={form.规格} onChange={e => updateField('规格', e.target.value)}
+                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-0.5">单位</label>
+              <input type="text" value={form.单位} readOnly className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm bg-gray-100" />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-0.5">计划数量</label>
+              <input type="number" step="1" value={form.计划数量 || ''} onChange={e => updateField('计划数量', parseInt(e.target.value) || 0)}
+                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-0.5">生产单位</label>
+              <select value={form.生产单位} onChange={e => updateField('生产单位', e.target.value)}
+                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none bg-white">
+                <option value="internal">内部</option>
+                <option value="external">外部（委外）</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-0.5">执行单位</label>
+              <input type="text" value={form.执行单位} onChange={e => updateField('执行单位', e.target.value)}
+                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
+                placeholder={form.生产单位 === 'internal' ? '内部部门名称' : '供应商名称'} />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-0.5">计划开始日期</label>
+              <input type="date" value={form.计划开始日期} onChange={e => updateField('计划开始日期', e.target.value)}
+                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-0.5">计划完成日期</label>
+              <input type="date" value={form.计划完成日期} onChange={e => updateField('计划完成日期', e.target.value)}
+                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-0.5">状态</label>
+              <select value={form.状态} onChange={e => updateField('状态', e.target.value)}
+                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none bg-white">
+                <option value="待生产">待生产</option>
+                <option value="生产中">生产中</option>
+                <option value="已完成">已完成</option>
+                <option value="已入库">已入库</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-0.5">制单人</label>
+              <input type="text" value={form.制单人} onChange={e => updateField('制单人', e.target.value)}
+                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-0.5">工序明细（用顿号分隔，如：裁切、印刷、烫金、糊盒）</label>
+            <input type="text" value={processesText} onChange={e => handleProcessesChange(e.target.value)}
+              className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
+              placeholder="裁切、印刷、烫金、糊盒" />
+            {form.工序列表.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {form.工序列表.map((p, idx) => (
+                  <span key={idx} className="inline-flex items-center px-2 py-0.5 bg-blue-50 text-blue-600 text-xs rounded border border-blue-200">
+                    {idx + 1}. {p.工序名称}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-0.5">备注</label>
+            <textarea value={form.备注} onChange={e => updateField('备注', e.target.value)}
+              className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" rows={2} />
+          </div>
+        </div>
+        <div className="px-5 py-3 border-t flex justify-end gap-2 bg-gray-50">
+          <button onClick={onClose} className="px-4 py-1.5 text-sm border rounded hover:bg-gray-100">取消</button>
+          <button onClick={handleSave} className="px-4 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">保存</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatusTag({ status }: { status: WorkOrder['状态'] }) {
+  const colors: Record<WorkOrder['状态'], string> = {
+    '待生产': 'bg-gray-100 text-gray-600',
+    '生产中': 'bg-yellow-50 text-yellow-700',
+    '已完成': 'bg-green-50 text-green-700',
+    '已入库': 'bg-blue-50 text-blue-700',
+  };
+  return <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${colors[status]}`}>{status}</span>;
+}
+
+export default function WorkOrdersPage() {
+  const [data, setData] = useState<WorkOrder[]>([]);
+  const [salesOrders, setSalesOrders] = useState<SalesOrder[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [processes, setProcesses] = useState<Process[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<WorkOrder['状态'] | ''>('');
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<WorkOrder | undefined>();
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const [orders, sos, prods, procs] = await Promise.all([
+        WorkOrderRepo.findAll(),
+        SalesOrderRepo.findAll(),
+        ProductRepo.findAll(),
+        ProcessRepo.findAll(),
+      ]);
+      setData(orders);
+      setSalesOrders(sos);
+      setProducts(prods);
+      setProcesses(procs);
+    } finally { setLoading(false); }
+  };
+  useEffect(() => { loadData(); }, []);
+
+  const filtered = data.filter(w => {
+    const q = search.toLowerCase();
+    return (!q || [w.单号, w.产品名称, w.物料编码, w.执行单位, w.备注].some(v => v?.toLowerCase().includes(q)))
+      && (!statusFilter || w.状态 === statusFilter);
+  });
+
+  const handleSave = async (form: Omit<WorkOrder, 'id'>) => {
+    if (editingItem?.id) await WorkOrderRepo.update(editingItem.id, form);
+    else await WorkOrderRepo.create(form);
+    await loadData();
+    setEditingItem(undefined);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('确定删除该施工单？')) return;
+    await WorkOrderRepo.delete(id);
+    await loadData();
+  };
+
+  const columns: Column<WorkOrder>[] = [
+    { key: '单号', label: '单号', sortable: true },
+    { key: '关联销售订单号', label: '关联销售单' },
+    { key: '产品名称', label: '产品', sortable: true },
+    { key: '物料编码', label: '物料编码' },
+    { key: '计划数量', label: '计划数量', sortable: true },
+    { key: '已完成数量', label: '已完成', sortable: true },
+    { key: '执行单位', label: '执行单位' },
+    { key: '状态', label: '状态', sortable: true, render: (w: WorkOrder) => <StatusTag status={w.状态} /> },
+    { key: '计划完成日期', label: '计划完成日期' },
+    { key: '制单人', label: '制单人' },
+    { key: '备注', label: '备注' },
+    { key: 'actions', label: '操作', render: (w: WorkOrder) => (
+      <div className="flex gap-1">
+        <button onClick={(e) => { e.stopPropagation(); setEditingItem(w); setModalOpen(true); }} className="px-2 py-0.5 text-xs border rounded hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600">编辑</button>
+        <button onClick={(e) => { e.stopPropagation(); handleDelete(w.id); }} className="px-2 py-0.5 text-xs border rounded hover:bg-red-50 hover:border-red-300 hover:text-red-600">删除</button>
+      </div>
+    )},
+  ];
+
+  const statusTabs = [
+    { label: '全部', active: !statusFilter, onClick: () => setStatusFilter('') },
+    { label: '待生产', active: statusFilter === '待生产', onClick: () => setStatusFilter('待生产') },
+    { label: '生产中', active: statusFilter === '生产中', onClick: () => setStatusFilter('生产中') },
+    { label: '已完成', active: statusFilter === '已完成', onClick: () => setStatusFilter('已完成') },
+    { label: '已入库', active: statusFilter === '已入库', onClick: () => setStatusFilter('已入库') },
+  ];
+
+  return (
+    <div className="flex flex-col h-full">
+      <PageHeader
+        title="施工单"
+        searchPlaceholder="搜索 单号 / 产品 / 物料编码 / 执行单位..."
+        onSearch={setSearch}
+        actions={[
+          { label: '新建施工单', icon: '＋', variant: 'primary' as const, onClick: () => { setEditingItem(undefined); setModalOpen(true); } },
+        ]}
+        tabs={statusTabs}
+      />
+      <div className="flex-1 overflow-auto bg-white">
+        <OrderTable
+          columns={columns}
+          data={filtered}
+          loading={loading}
+          emptyMessage="暂无施工单"
+          onRowClick={() => {}}
+          renderOrderNumber={w => <span className="text-blue-600 font-mono text-xs hover:underline">{w.单号}</span>}
+        />
+      </div>
+
+      <WorkOrderFormModal
+        open={modalOpen}
+        onClose={() => { setModalOpen(false); setEditingItem(undefined); }}
+        onSave={handleSave}
+        initial={editingItem}
+        salesOrders={salesOrders}
+        products={products}
+        processes={processes}
+      />
+    </div>
+  );
+}

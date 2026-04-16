@@ -4,7 +4,7 @@
  */
 
 import { getItem, setItem, STORAGE_KEYS } from './storage';
-import { Customer, Vendor, Material, Product, Process, Workstation, SalesOrder, PurchaseOrder, Inventory, ProcessingOrder } from './types';
+import { Customer, Vendor, Material, Product, Process, Workstation, SalesOrder, PurchaseOrder, Inventory, SalesOrderItem, DeliveryOrder, DeliveryOrderItem, PurchaseOrderItem, ReceivingOrder, ReceivingOrderItem, Warehouse, Employee, SalesInvoice, PurchaseInvoice, RoleKey, Bill, PaymentReceipt, PaymentMade, ScrapOrder, WorkOrder, JobReport } from './types';
 
 // ========== 初始数据（来自秒账） ==========
 
@@ -149,11 +149,43 @@ const INITIAL_INVENTORY: Inventory[] = [
   { id: '8', 产品名称: '牛皮纸袋', 货号: 'RAW002', 分类: '原材料', 单位: '个', 当前库存: 150, 安全库存: 100, 采购在途: 200, 销售在途: 0, 备注: '' },
 ];
 
-const INITIAL_PROCESSING_ORDERS: ProcessingOrder[] = [
-  { id: '1', 单号: 'JG20260415001', 加工公司: 'S19-谦林包装', 加工工序: '糊盒', 日期: '2026-04-15', 计划入库日期: '2026-04-20', 实际应付: 2800.00, 已收货: 0, 未付款: 2800.00, 已付款: 0, 付款状态: '未付款', 收货状态: '未收货', 制单人: '李紫璘', 业务员: '李紫璘', 加工地址: '', 备注: '急单', 云仓状态: '', 总箱数: 0, 总体积: 0, 总重量: 0, 入库状态: '', 出库状态: '' },
-  { id: '2', 单号: 'JG20260410002', 加工公司: 'S18-肖王包装', 加工工序: '模切', 日期: '2026-04-10', 计划入库日期: '2026-04-15', 实际应付: 1500.00, 已收货: 1500.00, 未付款: 0, 已付款: 1500.00, 付款状态: '全部付款', 收货状态: '全部收货', 制单人: '李紫璘', 业务员: '王明', 加工地址: '', 备注: '', 云仓状态: '', 总箱数: 0, 总体积: 0, 总重量: 0, 入库状态: '', 出库状态: '' },
-  { id: '3', 单号: 'JG20260408003', 加工公司: 'S06-三井', 加工工序: '烫金', 日期: '2026-04-08', 计划入库日期: '2026-04-12', 实际应付: 3600.00, 已收货: 3600.00, 未付款: 1200.00, 已付款: 2400.00, 付款状态: '部分付款', 收货状态: '全部收货', 制单人: '李紫璘', 业务员: '李紫璘', 加工地址: '', 备注: '金色烫金', 云仓状态: '', 总箱数: 0, 总体积: 0, 总重量: 0, 入库状态: '', 出库状态: '' },
+const INITIAL_WAREHOUSES: Warehouse[] = [
+  { id: '1', name: '成品仓', remark: '' },
+  { id: '2', name: '原料仓', remark: '' },
+  { id: '3', name: '辅料仓', remark: '' },
+  { id: '4', name: '外协仓', remark: '' },
 ];
+
+const INITIAL_EMPLOYEES: Employee[] = [
+  { id: '1', name: '金湛', roleKey: 'owner', phone: '13900000001', email: 'jinzhan@shanghai-shenji.com', status: '正常' },
+  { id: '2', name: '李紫璘', roleKey: 'admin', phone: '13900000002', email: 'lizilin@shanghai-shenji.com', status: '正常' },
+  { id: '3', name: '王明', roleKey: 'purchase', phone: '13900000003', email: 'wangming@shanghai-shenji.com', status: '正常' },
+  { id: '4', name: '张会计', roleKey: 'finance', phone: '13900000004', email: 'zhangkuaiji@shanghai-shenji.com', status: '正常' },
+  { id: '5', name: '仓管小李', roleKey: 'warehouse', phone: '13900000005', email: 'cangguan@shanghai-shenji.com', status: '正常' },
+];
+
+const INITIAL_SALES_INVOICES: SalesInvoice[] = [
+  { id: '1', 单号: 'FP20260415001', 发票号: 'FP12345678', 开票日期: '2026-04-15', 客户名称: 'C05-白领仕', 关联销售订单ids: ['1'], 金额: 3780.00, 税率: 0.13, 税额: 428.32, 状态: '已开', 备注: '', 制单人: '李紫璘' },
+];
+
+const INITIAL_PURCHASE_INVOICES: PurchaseInvoice[] = [
+  { id: '1', 单号: 'FP20260412001', 发票号: 'FP87654321', 开票日期: '2026-04-12', 供应商名称: 'S20-辰跃纸业', 关联采购订单ids: ['1'], 金额: 50000.00, 税率: 0.13, 税额: 5660.00, 状态: '已收票', 备注: '', 制单人: '李紫璘' },
+];
+
+const INITIAL_BILLS: Bill[] = [];
+const INITIAL_PAYMENT_RECEIPTS: PaymentReceipt[] = [];
+const INITIAL_PAYMENT_MADES: PaymentMade[] = [];
+const INITIAL_SCRAP_ORDERS: ScrapOrder[] = [];
+
+const INITIAL_WORK_ORDERS: WorkOrder[] = [];
+const INITIAL_JOB_REPORTS: JobReport[] = [];
+
+const INITIAL_SALES_ORDER_ITEMS: SalesOrderItem[] = [];
+const INITIAL_DELIVERY_ORDERS: DeliveryOrder[] = [];
+const INITIAL_DELIVERY_ORDER_ITEMS: DeliveryOrderItem[] = [];
+const INITIAL_PURCHASE_ORDER_ITEMS: PurchaseOrderItem[] = [];
+const INITIAL_RECEIVING_ORDERS: ReceivingOrder[] = [];
+const INITIAL_RECEIVING_ORDER_ITEMS: ReceivingOrderItem[] = [];
 
 // ========== 数据管理器 ==========
 
@@ -200,8 +232,53 @@ export function setPurchaseOrders(data: PurchaseOrder[]) { setData(STORAGE_KEYS.
 export function getInventory(): Inventory[] { return getOrInitialize(STORAGE_KEYS.inventory, INITIAL_INVENTORY); }
 export function setInventory(data: Inventory[]) { setData(STORAGE_KEYS.inventory, data); }
 
-export function getProcessingOrders(): ProcessingOrder[] { return getOrInitialize(STORAGE_KEYS.processingOrders, INITIAL_PROCESSING_ORDERS); }
-export function setProcessingOrders(data: ProcessingOrder[]) { setData(STORAGE_KEYS.processingOrders, data); }
+export function getWarehouses(): Warehouse[] { return getOrInitialize(STORAGE_KEYS.warehouses, INITIAL_WAREHOUSES); }
+export function setWarehouses(data: Warehouse[]) { setData(STORAGE_KEYS.warehouses, data); }
+
+export function getSalesOrderItems(): SalesOrderItem[] { return getOrInitialize(STORAGE_KEYS.salesOrderItems, INITIAL_SALES_ORDER_ITEMS); }
+export function setSalesOrderItems(data: SalesOrderItem[]) { setData(STORAGE_KEYS.salesOrderItems, data); }
+
+export function getDeliveryOrders(): DeliveryOrder[] { return getOrInitialize(STORAGE_KEYS.deliveryOrders, INITIAL_DELIVERY_ORDERS); }
+export function setDeliveryOrders(data: DeliveryOrder[]) { setData(STORAGE_KEYS.deliveryOrders, data); }
+
+export function getDeliveryOrderItems(): DeliveryOrderItem[] { return getOrInitialize(STORAGE_KEYS.deliveryOrderItems, INITIAL_DELIVERY_ORDER_ITEMS); }
+export function setDeliveryOrderItems(data: DeliveryOrderItem[]) { setData(STORAGE_KEYS.deliveryOrderItems, data); }
+
+export function getPurchaseOrderItems(): PurchaseOrderItem[] { return getOrInitialize(STORAGE_KEYS.purchaseOrderItems, INITIAL_PURCHASE_ORDER_ITEMS); }
+export function setPurchaseOrderItems(data: PurchaseOrderItem[]) { setData(STORAGE_KEYS.purchaseOrderItems, data); }
+
+export function getReceivingOrders(): ReceivingOrder[] { return getOrInitialize(STORAGE_KEYS.receivingOrders, INITIAL_RECEIVING_ORDERS); }
+export function setReceivingOrders(data: ReceivingOrder[]) { setData(STORAGE_KEYS.receivingOrders, data); }
+
+export function getReceivingOrderItems(): ReceivingOrderItem[] { return getOrInitialize(STORAGE_KEYS.receivingOrderItems, INITIAL_RECEIVING_ORDER_ITEMS); }
+export function setReceivingOrderItems(data: ReceivingOrderItem[]) { setData(STORAGE_KEYS.receivingOrderItems, data); }
+
+export function getEmployees(): Employee[] { return getOrInitialize(STORAGE_KEYS.employees, INITIAL_EMPLOYEES); }
+export function setEmployees(data: Employee[]) { setData(STORAGE_KEYS.employees, data); }
+
+export function getSalesInvoices(): SalesInvoice[] { return getOrInitialize(STORAGE_KEYS.salesInvoices, INITIAL_SALES_INVOICES); }
+export function setSalesInvoices(data: SalesInvoice[]) { setData(STORAGE_KEYS.salesInvoices, data); }
+
+export function getPurchaseInvoices(): PurchaseInvoice[] { return getOrInitialize(STORAGE_KEYS.purchaseInvoices, INITIAL_PURCHASE_INVOICES); }
+export function setPurchaseInvoices(data: PurchaseInvoice[]) { setData(STORAGE_KEYS.purchaseInvoices, data); }
+
+export function getBills(): Bill[] { return getOrInitialize(STORAGE_KEYS.bills, INITIAL_BILLS); }
+export function setBills(data: Bill[]) { setData(STORAGE_KEYS.bills, data); }
+
+export function getPaymentReceipts(): PaymentReceipt[] { return getOrInitialize(STORAGE_KEYS.paymentReceipts, INITIAL_PAYMENT_RECEIPTS); }
+export function setPaymentReceipts(data: PaymentReceipt[]) { setData(STORAGE_KEYS.paymentReceipts, data); }
+
+export function getPaymentMades(): PaymentMade[] { return getOrInitialize(STORAGE_KEYS.paymentMades, INITIAL_PAYMENT_MADES); }
+export function setPaymentMades(data: PaymentMade[]) { setData(STORAGE_KEYS.paymentMades, data); }
+
+export function getScrapOrders(): ScrapOrder[] { return getOrInitialize(STORAGE_KEYS.scrapOrders, INITIAL_SCRAP_ORDERS); }
+export function setScrapOrders(data: ScrapOrder[]) { setData(STORAGE_KEYS.scrapOrders, data); }
+
+export function getWorkOrders(): WorkOrder[] { return getOrInitialize(STORAGE_KEYS.workOrders, INITIAL_WORK_ORDERS); }
+export function setWorkOrders(data: WorkOrder[]) { setData(STORAGE_KEYS.workOrders, data); }
+
+export function getJobReports(): JobReport[] { return getOrInitialize(STORAGE_KEYS.jobReports, INITIAL_JOB_REPORTS); }
+export function setJobReports(data: JobReport[]) { setData(STORAGE_KEYS.jobReports, data); }
 
 export function resetAllData() {
   setCustomers(INITIAL_CUSTOMERS);
@@ -213,6 +290,21 @@ export function resetAllData() {
   setSalesOrders(INITIAL_SALES_ORDERS);
   setPurchaseOrders(INITIAL_PURCHASE_ORDERS);
   setInventory(INITIAL_INVENTORY);
-  setProcessingOrders(INITIAL_PROCESSING_ORDERS);
+  setWarehouses(INITIAL_WAREHOUSES);
+  setSalesOrderItems(INITIAL_SALES_ORDER_ITEMS);
+  setDeliveryOrders(INITIAL_DELIVERY_ORDERS);
+  setDeliveryOrderItems(INITIAL_DELIVERY_ORDER_ITEMS);
+  setPurchaseOrderItems(INITIAL_PURCHASE_ORDER_ITEMS);
+  setReceivingOrders(INITIAL_RECEIVING_ORDERS);
+  setReceivingOrderItems(INITIAL_RECEIVING_ORDER_ITEMS);
+  setEmployees(INITIAL_EMPLOYEES);
+  setSalesInvoices(INITIAL_SALES_INVOICES);
+  setPurchaseInvoices(INITIAL_PURCHASE_INVOICES);
+  setBills(INITIAL_BILLS);
+  setPaymentReceipts(INITIAL_PAYMENT_RECEIPTS);
+  setPaymentMades(INITIAL_PAYMENT_MADES);
+  setScrapOrders(INITIAL_SCRAP_ORDERS);
+  setWorkOrders(INITIAL_WORK_ORDERS);
+  setJobReports(INITIAL_JOB_REPORTS);
   setItem(STORAGE_KEYS.lastSync, new Date().toISOString());
 }

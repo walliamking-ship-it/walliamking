@@ -3,7 +3,7 @@
  * USE_MOCK_DATA=true 时数据保存到浏览器localStorage，刷新页面不丢失
  */
 
-import { Customer, Vendor, Material, Product, Process, Workstation, SalesOrder, PurchaseOrder, Inventory, ProcessingOrder } from './types';
+import { Customer, Vendor, Material, Product, Process, Workstation, SalesOrder, PurchaseOrder, Inventory, SalesOrderItem, DeliveryOrder, DeliveryOrderItem, PurchaseOrderItem, ReceivingOrder, ReceivingOrderItem, Warehouse, Employee, SalesInvoice, PurchaseInvoice, Bill, PaymentReceipt, PaymentMade, ScrapOrder, WorkOrder, JobReport } from './types';
 import { DataService, TABLE_IDS } from './api';
 import { USE_MOCK_DATA } from './mock-data';
 import {
@@ -14,9 +14,24 @@ import {
   getProcesses, setProcesses,
   getWorkstations, setWorkstations,
   getSalesOrders, setSalesOrders,
+  getSalesOrderItems, setSalesOrderItems,
+  getDeliveryOrders, setDeliveryOrders,
+  getDeliveryOrderItems, setDeliveryOrderItems,
   getPurchaseOrders, setPurchaseOrders,
+  getPurchaseOrderItems, setPurchaseOrderItems,
+  getReceivingOrders, setReceivingOrders,
+  getReceivingOrderItems, setReceivingOrderItems,
+  getWarehouses, setWarehouses,
+  getEmployees, setEmployees,
+  getSalesInvoices, setSalesInvoices,
+  getPurchaseInvoices, setPurchaseInvoices,
+  getBills, setBills,
+  getPaymentReceipts, setPaymentReceipts,
+  getPaymentMades, setPaymentMades,
+  getScrapOrders, setScrapOrders,
+  getWorkOrders, setWorkOrders,
+  getJobReports, setJobReports,
   getInventory, setInventory,
-  getProcessingOrders, setProcessingOrders,
 } from './localData';
 
 // ========== 客户 ==========
@@ -461,51 +476,435 @@ export const InventoryRepo = {
   },
 };
 
-// ========== 加工单 ==========
-export const ProcessingOrderRepo = {
-  async findAll(): Promise<ProcessingOrder[]> {
-    if (USE_MOCK_DATA) return getProcessingOrders();
-    return await DataService.list(TABLE_IDS.processingOrders) as ProcessingOrder[];
+// ========== 仓库 ==========
+export const WarehouseRepo = {
+  async findAll() {
+    return getWarehouses();
   },
-  async findById(id: string): Promise<ProcessingOrder | undefined> {
-    const all = await this.findAll();
-    return all.find(p => p.id === id);
+};
+
+// ========== 销售订单明细 ==========
+export const SalesOrderItemRepo = {
+  async findAll(): Promise<SalesOrderItem[]> {
+    return getSalesOrderItems();
   },
-  async create(data: Omit<ProcessingOrder, 'id'>): Promise<ProcessingOrder> {
-    if (USE_MOCK_DATA) {
-      const all = getProcessingOrders();
-      if (all.find(p => p.单号 === data.单号)) throw new Error(`单号 "${data.单号}" 已存在`);
-      const newItem = { ...data, id: String(Date.now()) } as ProcessingOrder;
-      setProcessingOrders([...all, newItem]);
-      return newItem;
-    }
-    const all = await this.findAll();
-    if (all.find(p => p.单号 === data.单号)) throw new Error(`单号 "${data.单号}" 已存在`);
-    await DataService.create(TABLE_IDS.processingOrders, data);
-    const updated = await this.findAll();
-    return updated[updated.length - 1];
+  async findBySalesOrderId(salesOrderId: string): Promise<SalesOrderItem[]> {
+    return getSalesOrderItems().filter(i => i.销售订单id === salesOrderId);
   },
-  async update(id: string, data: Partial<ProcessingOrder>): Promise<ProcessingOrder | undefined> {
-    if (USE_MOCK_DATA) {
-      const all = getProcessingOrders();
-      const idx = all.findIndex(p => p.id === id);
-      if (idx === -1) throw new Error('加工单不存在');
-      if (data.单号 && all.find(p => p.id !== id && p.单号 === data.单号)) throw new Error(`单号 "${data.单号}" 已存在`);
-      const updated = [...all];
-      updated[idx] = { ...updated[idx], ...data };
-      setProcessingOrders(updated);
-      return updated[idx];
-    }
-    const all = await this.findAll();
-    if (data.单号 && all.find(p => p.id !== id && p.单号 === data.单号)) throw new Error(`单号 "${data.单号}" 已存在`);
-    await DataService.update(TABLE_IDS.processingOrders, id, data);
-    return await this.findById(id);
+  async create(data: Omit<SalesOrderItem, 'id'>): Promise<SalesOrderItem> {
+    const newItem = { ...data, id: String(Date.now()) } as SalesOrderItem;
+    setSalesOrderItems([...getSalesOrderItems(), newItem]);
+    return newItem;
+  },
+  async update(id: string, data: Partial<SalesOrderItem>): Promise<SalesOrderItem | undefined> {
+    const all = getSalesOrderItems();
+    const idx = all.findIndex(i => i.id === id);
+    if (idx === -1) return undefined;
+    const updated = [...all];
+    updated[idx] = { ...updated[idx], ...data };
+    setSalesOrderItems(updated);
+    return updated[idx];
   },
   async delete(id: string): Promise<boolean> {
-    if (USE_MOCK_DATA) {
-      setProcessingOrders(getProcessingOrders().filter(p => p.id !== id));
-      return true;
-    }
-    return await DataService.delete(TABLE_IDS.processingOrders, id);
+    setSalesOrderItems(getSalesOrderItems().filter(i => i.id !== id));
+    return true;
+  },
+  async deleteBySalesOrderId(salesOrderId: string): Promise<boolean> {
+    setSalesOrderItems(getSalesOrderItems().filter(i => i.销售订单id !== salesOrderId));
+    return true;
+  },
+};
+
+// ========== 送货单 ==========
+export const DeliveryOrderRepo = {
+  async findAll(): Promise<DeliveryOrder[]> {
+    return getDeliveryOrders();
+  },
+  async findById(id: string): Promise<DeliveryOrder | undefined> {
+    return getDeliveryOrders().find(d => d.id === id);
+  },
+  async create(data: Omit<DeliveryOrder, 'id'>): Promise<DeliveryOrder> {
+    const all = getDeliveryOrders();
+    if (all.find(d => d.单号 === data.单号)) throw new Error(`单号 "${data.单号}" 已存在`);
+    const newItem = { ...data, id: String(Date.now()) } as DeliveryOrder;
+    setDeliveryOrders([...all, newItem]);
+    return newItem;
+  },
+  async update(id: string, data: Partial<DeliveryOrder>): Promise<DeliveryOrder | undefined> {
+    const all = getDeliveryOrders();
+    const idx = all.findIndex(d => d.id === id);
+    if (idx === -1) return undefined;
+    const updated = [...all];
+    updated[idx] = { ...updated[idx], ...data };
+    setDeliveryOrders(updated);
+    return updated[idx];
+  },
+  async delete(id: string): Promise<boolean> {
+    setDeliveryOrders(getDeliveryOrders().filter(d => d.id !== id));
+    setDeliveryOrderItems(getDeliveryOrderItems().filter(i => i.送货单id !== id));
+    return true;
+  },
+};
+
+// ========== 送货单明细 ==========
+export const DeliveryOrderItemRepo = {
+  async findAll(): Promise<DeliveryOrderItem[]> {
+    return getDeliveryOrderItems();
+  },
+  async findByDeliveryOrderId(deliveryOrderId: string): Promise<DeliveryOrderItem[]> {
+    return getDeliveryOrderItems().filter(i => i.送货单id === deliveryOrderId);
+  },
+  async create(data: Omit<DeliveryOrderItem, 'id'>): Promise<DeliveryOrderItem> {
+    const newItem = { ...data, id: String(Date.now()) } as DeliveryOrderItem;
+    setDeliveryOrderItems([...getDeliveryOrderItems(), newItem]);
+    return newItem;
+  },
+  async delete(id: string): Promise<boolean> {
+    setDeliveryOrderItems(getDeliveryOrderItems().filter(i => i.id !== id));
+    return true;
+  },
+};
+
+// ========== 采购订单明细 ==========
+export const PurchaseOrderItemRepo = {
+  async findAll(): Promise<PurchaseOrderItem[]> {
+    return getPurchaseOrderItems();
+  },
+  async findByPurchaseOrderId(purchaseOrderId: string): Promise<PurchaseOrderItem[]> {
+    return getPurchaseOrderItems().filter(i => i.采购订单id === purchaseOrderId);
+  },
+  async create(data: Omit<PurchaseOrderItem, 'id'>): Promise<PurchaseOrderItem> {
+    const newItem = { ...data, id: String(Date.now()) } as PurchaseOrderItem;
+    setPurchaseOrderItems([...getPurchaseOrderItems(), newItem]);
+    return newItem;
+  },
+  async update(id: string, data: Partial<PurchaseOrderItem>): Promise<PurchaseOrderItem | undefined> {
+    const all = getPurchaseOrderItems();
+    const idx = all.findIndex(i => i.id === id);
+    if (idx === -1) return undefined;
+    const updated = [...all];
+    updated[idx] = { ...updated[idx], ...data };
+    setPurchaseOrderItems(updated);
+    return updated[idx];
+  },
+  async delete(id: string): Promise<boolean> {
+    setPurchaseOrderItems(getPurchaseOrderItems().filter(i => i.id !== id));
+    return true;
+  },
+  async deleteByPurchaseOrderId(purchaseOrderId: string): Promise<boolean> {
+    setPurchaseOrderItems(getPurchaseOrderItems().filter(i => i.采购订单id !== purchaseOrderId));
+    return true;
+  },
+};
+
+// ========== 收货单 ==========
+export const ReceivingOrderRepo = {
+  async findAll(): Promise<ReceivingOrder[]> {
+    return getReceivingOrders();
+  },
+  async findById(id: string): Promise<ReceivingOrder | undefined> {
+    return getReceivingOrders().find(r => r.id === id);
+  },
+  async create(data: Omit<ReceivingOrder, 'id'>): Promise<ReceivingOrder> {
+    const all = getReceivingOrders();
+    if (all.find(r => r.单号 === data.单号)) throw new Error(`单号 "${data.单号}" 已存在`);
+    const newItem = { ...data, id: String(Date.now()) } as ReceivingOrder;
+    setReceivingOrders([...all, newItem]);
+    return newItem;
+  },
+  async update(id: string, data: Partial<ReceivingOrder>): Promise<ReceivingOrder | undefined> {
+    const all = getReceivingOrders();
+    const idx = all.findIndex(r => r.id === id);
+    if (idx === -1) return undefined;
+    const updated = [...all];
+    updated[idx] = { ...updated[idx], ...data };
+    setReceivingOrders(updated);
+    return updated[idx];
+  },
+  async delete(id: string): Promise<boolean> {
+    setReceivingOrders(getReceivingOrders().filter(r => r.id !== id));
+    setReceivingOrderItems(getReceivingOrderItems().filter(i => i.收货单id !== id));
+    return true;
+  },
+};
+
+// ========== 收货单明细 ==========
+export const ReceivingOrderItemRepo = {
+  async findAll(): Promise<ReceivingOrderItem[]> {
+    return getReceivingOrderItems();
+  },
+  async findByReceivingOrderId(receivingOrderId: string): Promise<ReceivingOrderItem[]> {
+    return getReceivingOrderItems().filter(i => i.收货单id === receivingOrderId);
+  },
+  async create(data: Omit<ReceivingOrderItem, 'id'>): Promise<ReceivingOrderItem> {
+    const newItem = { ...data, id: String(Date.now()) } as ReceivingOrderItem;
+    setReceivingOrderItems([...getReceivingOrderItems(), newItem]);
+    return newItem;
+  },
+  async delete(id: string): Promise<boolean> {
+    setReceivingOrderItems(getReceivingOrderItems().filter(i => i.id !== id));
+    return true;
+  },
+};
+
+// ========== 员工 ==========
+export const EmployeeRepo = {
+  async findAll(): Promise<Employee[]> {
+    return getEmployees();
+  },
+  async findById(id: string): Promise<Employee | undefined> {
+    return getEmployees().find(e => e.id === id);
+  },
+  async create(data: Omit<Employee, 'id'>): Promise<Employee> {
+    const all = getEmployees();
+    const newItem = { ...data, id: String(Date.now()) } as Employee;
+    setEmployees([...all, newItem]);
+    return newItem;
+  },
+  async update(id: string, data: Partial<Employee>): Promise<Employee | undefined> {
+    const all = getEmployees();
+    const idx = all.findIndex(e => e.id === id);
+    if (idx === -1) return undefined;
+    const updated = [...all];
+    updated[idx] = { ...updated[idx], ...data };
+    setEmployees(updated);
+    return updated[idx];
+  },
+  async delete(id: string): Promise<boolean> {
+    setEmployees(getEmployees().filter(e => e.id !== id));
+    return true;
+  },
+};
+
+// ========== 销售发票 ==========
+export const SalesInvoiceRepo = {
+  async findAll(): Promise<SalesInvoice[]> {
+    return getSalesInvoices();
+  },
+  async findById(id: string): Promise<SalesInvoice | undefined> {
+    return getSalesInvoices().find(i => i.id === id);
+  },
+  async findBySalesOrderId(salesOrderId: string): Promise<SalesInvoice[]> {
+    return getSalesInvoices().filter(i => i.关联销售订单ids.includes(salesOrderId));
+  },
+  async create(data: Omit<SalesInvoice, 'id'>): Promise<SalesInvoice> {
+    const newItem = { ...data, id: String(Date.now()) } as SalesInvoice;
+    setSalesInvoices([...getSalesInvoices(), newItem]);
+    return newItem;
+  },
+  async update(id: string, data: Partial<SalesInvoice>): Promise<SalesInvoice | undefined> {
+    const all = getSalesInvoices();
+    const idx = all.findIndex(i => i.id === id);
+    if (idx === -1) return undefined;
+    const updated = [...all];
+    updated[idx] = { ...updated[idx], ...data };
+    setSalesInvoices(updated);
+    return updated[idx];
+  },
+  async delete(id: string): Promise<boolean> {
+    setSalesInvoices(getSalesInvoices().filter(i => i.id !== id));
+    return true;
+  },
+};
+
+// ========== 采购发票 ==========
+export const PurchaseInvoiceRepo = {
+  async findAll(): Promise<PurchaseInvoice[]> {
+    return getPurchaseInvoices();
+  },
+  async findById(id: string): Promise<PurchaseInvoice | undefined> {
+    return getPurchaseInvoices().find(i => i.id === id);
+  },
+  async findByPurchaseOrderId(purchaseOrderId: string): Promise<PurchaseInvoice[]> {
+    return getPurchaseInvoices().filter(i => i.关联采购订单ids.includes(purchaseOrderId));
+  },
+  async create(data: Omit<PurchaseInvoice, 'id'>): Promise<PurchaseInvoice> {
+    const newItem = { ...data, id: String(Date.now()) } as PurchaseInvoice;
+    setPurchaseInvoices([...getPurchaseInvoices(), newItem]);
+    return newItem;
+  },
+  async update(id: string, data: Partial<PurchaseInvoice>): Promise<PurchaseInvoice | undefined> {
+    const all = getPurchaseInvoices();
+    const idx = all.findIndex(i => i.id === id);
+    if (idx === -1) return undefined;
+    const updated = [...all];
+    updated[idx] = { ...updated[idx], ...data };
+    setPurchaseInvoices(updated);
+    return updated[idx];
+  },
+  async delete(id: string): Promise<boolean> {
+    setPurchaseInvoices(getPurchaseInvoices().filter(i => i.id !== id));
+    return true;
+  },
+};
+
+// ========== 账单 ==========
+export const BillRepo = {
+  async findAll(): Promise<Bill[]> {
+    return getBills();
+  },
+  async findById(id: string): Promise<Bill | undefined> {
+    return getBills().find(b => b.id === id);
+  },
+  async findByCustomer(customerName: string): Promise<Bill[]> {
+    return getBills().filter(b => b.客户名称 === customerName);
+  },
+  async create(data: Omit<Bill, 'id'>): Promise<Bill> {
+    const newItem = { ...data, id: String(Date.now()) } as Bill;
+    setBills([...getBills(), newItem]);
+    return newItem;
+  },
+  async update(id: string, data: Partial<Bill>): Promise<Bill | undefined> {
+    const all = getBills();
+    const idx = all.findIndex(b => b.id === id);
+    if (idx === -1) return undefined;
+    const updated = [...all];
+    updated[idx] = { ...updated[idx], ...data };
+    setBills(updated);
+    return updated[idx];
+  },
+  async delete(id: string): Promise<boolean> {
+    setBills(getBills().filter(b => b.id !== id));
+    return true;
+  },
+};
+
+// ========== 收款单 ==========
+export const PaymentReceiptRepo = {
+  async findAll(): Promise<PaymentReceipt[]> {
+    return getPaymentReceipts();
+  },
+  async findById(id: string): Promise<PaymentReceipt | undefined> {
+    return getPaymentReceipts().find(p => p.id === id);
+  },
+  async findBySalesOrderId(salesOrderId: string): Promise<PaymentReceipt[]> {
+    return getPaymentReceipts().filter(p => p.关联销售订单ids.includes(salesOrderId));
+  },
+  async create(data: Omit<PaymentReceipt, 'id'>): Promise<PaymentReceipt> {
+    const newItem = { ...data, id: String(Date.now()) } as PaymentReceipt;
+    setPaymentReceipts([...getPaymentReceipts(), newItem]);
+    return newItem;
+  },
+  async update(id: string, data: Partial<PaymentReceipt>): Promise<PaymentReceipt | undefined> {
+    const all = getPaymentReceipts();
+    const idx = all.findIndex(p => p.id === id);
+    if (idx === -1) return undefined;
+    const updated = [...all];
+    updated[idx] = { ...updated[idx], ...data };
+    setPaymentReceipts(updated);
+    return updated[idx];
+  },
+  async delete(id: string): Promise<boolean> {
+    setPaymentReceipts(getPaymentReceipts().filter(p => p.id !== id));
+    return true;
+  },
+};
+
+// ========== 付款单 ==========
+export const PaymentMadeRepo = {
+  async findAll(): Promise<PaymentMade[]> {
+    return getPaymentMades();
+  },
+  async findById(id: string): Promise<PaymentMade | undefined> {
+    return getPaymentMades().find(p => p.id === id);
+  },
+  async findByPurchaseOrderId(purchaseOrderId: string): Promise<PaymentMade[]> {
+    return getPaymentMades().filter(p => p.关联采购订单ids.includes(purchaseOrderId));
+  },
+  async create(data: Omit<PaymentMade, 'id'>): Promise<PaymentMade> {
+    const newItem = { ...data, id: String(Date.now()) } as PaymentMade;
+    setPaymentMades([...getPaymentMades(), newItem]);
+    return newItem;
+  },
+  async update(id: string, data: Partial<PaymentMade>): Promise<PaymentMade | undefined> {
+    const all = getPaymentMades();
+    const idx = all.findIndex(p => p.id === id);
+    if (idx === -1) return undefined;
+    const updated = [...all];
+    updated[idx] = { ...updated[idx], ...data };
+    setPaymentMades(updated);
+    return updated[idx];
+  },
+  async delete(id: string): Promise<boolean> {
+    setPaymentMades(getPaymentMades().filter(p => p.id !== id));
+    return true;
+  },
+};
+
+// ========== 报废单 ==========
+export const ScrapOrderRepo = {
+  async findAll(): Promise<ScrapOrder[]> {
+    return getScrapOrders();
+  },
+  async findById(id: string): Promise<ScrapOrder | undefined> {
+    return getScrapOrders().find(s => s.id === id);
+  },
+  async create(data: Omit<ScrapOrder, 'id'>): Promise<ScrapOrder> {
+    const newItem = { ...data, id: String(Date.now()) } as ScrapOrder;
+    setScrapOrders([...getScrapOrders(), newItem]);
+    return newItem;
+  },
+  async update(id: string, data: Partial<ScrapOrder>): Promise<ScrapOrder | undefined> {
+    const all = getScrapOrders();
+    const idx = all.findIndex(s => s.id === id);
+    if (idx === -1) return undefined;
+    const updated = [...all];
+    updated[idx] = { ...updated[idx], ...data };
+    setScrapOrders(updated);
+    return updated[idx];
+  },
+  async delete(id: string): Promise<boolean> {
+    setScrapOrders(getScrapOrders().filter(s => s.id !== id));
+    return true;
+  },
+};
+
+// ========== 生产工单 ==========
+export const WorkOrderRepo = {
+  async findAll(): Promise<WorkOrder[]> {
+    return getWorkOrders();
+  },
+  async findById(id: string): Promise<WorkOrder | undefined> {
+    return getWorkOrders().find(w => w.id === id);
+  },
+  async findBySalesOrderId(salesOrderId: string): Promise<WorkOrder[]> {
+    return getWorkOrders().filter(w => w.关联销售订单id === salesOrderId);
+  },
+  async create(data: Omit<WorkOrder, 'id'>): Promise<WorkOrder> {
+    const newItem = { ...data, id: String(Date.now()) } as WorkOrder;
+    setWorkOrders([...getWorkOrders(), newItem]);
+    return newItem;
+  },
+  async update(id: string, data: Partial<WorkOrder>): Promise<WorkOrder | undefined> {
+    const all = getWorkOrders();
+    const idx = all.findIndex(w => w.id === id);
+    if (idx === -1) return undefined;
+    const updated = [...all];
+    updated[idx] = { ...updated[idx], ...data };
+    setWorkOrders(updated);
+    return updated[idx];
+  },
+  async delete(id: string): Promise<boolean> {
+    setWorkOrders(getWorkOrders().filter(w => w.id !== id));
+    return true;
+  },
+};
+
+// ========== 报工记录 ==========
+export const JobReportRepo = {
+  async findAll(): Promise<JobReport[]> {
+    return getJobReports();
+  },
+  async findByWorkOrderId(workOrderId: string): Promise<JobReport[]> {
+    return getJobReports().filter(j => j.工单id === workOrderId);
+  },
+  async create(data: Omit<JobReport, 'id'>): Promise<JobReport> {
+    const newItem = { ...data, id: String(Date.now()) } as JobReport;
+    setJobReports([...getJobReports(), newItem]);
+    return newItem;
+  },
+  async delete(id: string): Promise<boolean> {
+    setJobReports(getJobReports().filter(j => j.id !== id));
+    return true;
   },
 };

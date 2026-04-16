@@ -2,28 +2,72 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useState } from 'react';
 
-const quickLinks = [
-  { href: '/sales-orders', label: '销售单', icon: '📋' },
-  { href: '/products', label: '产品', icon: '🏷️' },
-  { href: '/purchase-orders', label: '采购单', icon: '📦' },
+// ── 菜单结构定义 ──────────────────────────────────────────
+type NavItem = { href: string; label: string; icon: string };
+type NavGroup = { label: string; icon: string; items: NavItem[] };
+
+const NAV_GROUPS: NavGroup[] = [
+  {
+    label: '综合',
+    icon: '🏢',
+    items: [
+      { href: '/customers', label: '客户', icon: '👥' },
+      { href: '/vendors', label: '供应商', icon: '🏭' },
+      { href: '/reports', label: '报表中心', icon: '📊' },
+    ],
+  },
+  {
+    label: '销售管理',
+    icon: '📋',
+    items: [
+      { href: '/sales-orders', label: '销售订单', icon: '📋' },
+      { href: '/delivery-orders', label: '送货单', icon: '🚚' },
+    ],
+  },
+  {
+    label: '采购管理',
+    icon: '📦',
+    items: [
+      { href: '/purchase-orders', label: '采购订单', icon: '📦' },
+      { href: '/receiving-orders', label: '收货单', icon: '📥' },
+    ],
+  },
+  {
+    label: '财务管理',
+    icon: '💰',
+    items: [
+      { href: '/invoices', label: '发票', icon: '🧾' },
+      { href: '/payment-receipts', label: '收款单', icon: '💰' },
+      { href: '/payment-mades', label: '付款单', icon: '💸' },
+      { href: '/bills', label: '账单管理', icon: '📑' },
+    ],
+  },
+  {
+    label: '生产管理',
+    icon: '🔨',
+    items: [
+      { href: '/work-orders', label: '施工单', icon: '🔨' },
+      { href: '/job-reports', label: '报工记录', icon: '📝' },
+      { href: '/workstations', label: '工序', icon: '🔧' },
+    ],
+  },
+  {
+    label: '产品管理',
+    icon: '🏷️',
+    items: [
+      { href: '/inventory', label: '库存', icon: '📦' },
+      { href: '/products', label: '产品', icon: '🏷️' },
+      { href: '/materials', label: '物料', icon: '📄' },
+    ],
+  },
 ];
 
-const mainNav = [
-  { href: '/customers', label: '客户', icon: '👥' },
-  { href: '/vendors', label: '供应商', icon: '🏭' },
-  { href: '/sales-orders', label: '销售订单', icon: '📋' },
-  { href: '/purchase-orders', label: '采购订单', icon: '📦' },
-  { href: '/processing-orders', label: '加工单', icon: '🏭' },
-  { href: '/inventory', label: '库存', icon: '📦' },
-  { href: '/products', label: '产品', icon: '🏷️' },
-  { href: '/materials', label: '物料', icon: '📄' },
-  { href: '/processes', label: '工艺', icon: '⚙️' },
-  { href: '/workstations', label: '工序', icon: '🔧' },
-];
-
-const bottomNav = [
+const BOTTOM_NAV: NavItem[] = [
   { href: '/reports', label: '报表', icon: '📊' },
+  { href: '/reports/analytics', label: '管理看板', icon: '📈' },
+  { href: '/reports/production-kanban', label: '生产看板', icon: '🏭' },
   { href: '/settings', label: '商户设置', icon: '⚙️' },
   { href: '/employees', label: '员工管理', icon: '👤' },
   { href: '/logs', label: '业务日志', icon: '📝' },
@@ -31,8 +75,18 @@ const bottomNav = [
 
 export default function Sidebar({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
-  const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/');
+  const isActive = (href: string) =>
+    pathname === href || pathname.startsWith(href + '/');
+
+  // 判断当前路径属于哪个一级分组
+  const activeGroup = NAV_GROUPS.find(g =>
+    g.items.some(item => isActive(item.href))
+  )?.label;
+
+  const toggleGroup = (label: string) =>
+    setCollapsed(prev => ({ ...prev, [label]: !prev[label] }));
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -46,47 +100,56 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
           <div className="text-xs text-gray-500 mt-0.5">2026年4月15日 星期三</div>
         </div>
 
-        {/* 快捷入口 */}
-        <div className="px-2 py-2 border-b border-gray-700">
-          <div className="text-[10px] text-gray-500 uppercase tracking-widest px-2 py-1">快捷</div>
-          {quickLinks.map(item => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-2 px-2 py-1.5 rounded text-sm transition-colors ${
-                isActive(item.href)
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-300 hover:bg-gray-800'
-              }`}
-            >
-              <span className="text-sm">{item.icon}</span>
-              <span>{item.label}</span>
-            </Link>
-          ))}
-        </div>
-
-        {/* 主导航 */}
+        {/* 主导航 — 分组可折叠 */}
         <nav className="flex-1 py-2 overflow-y-auto">
-          <div className="text-[10px] text-gray-500 uppercase tracking-widest px-3 py-1">功能</div>
-          {mainNav.map(item => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded text-sm transition-colors ${
-                isActive(item.href)
-                  ? 'bg-gray-800 text-white border-l-2 border-blue-400'
-                  : 'text-gray-300 hover:bg-gray-800'
-              }`}
-            >
-              <span>{item.icon}</span>
-              <span>{item.label}</span>
-            </Link>
-          ))}
+          {NAV_GROUPS.map(group => {
+            const isOpen = collapsed[group.label] !== true;
+            const isGroupActive = activeGroup === group.label;
+            return (
+              <div key={group.label} className="mb-1">
+                {/* 一级菜单头 */}
+                <button
+                  onClick={() => toggleGroup(group.label)}
+                  className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors rounded mx-1 ${
+                    isGroupActive
+                      ? 'bg-gray-800 text-white border-l-2 border-blue-400'
+                      : 'text-gray-300 hover:bg-gray-800'
+                  }`}
+                >
+                  <span className="text-base">{group.icon}</span>
+                  <span className="flex-1 text-left font-medium">{group.label}</span>
+                  <span className={`text-xs transition-transform ${isOpen ? 'rotate-0' : '-rotate-90'}`}>
+                    ▾
+                  </span>
+                </button>
+
+                {/* 二级菜单 */}
+                {isOpen && (
+                  <div className="ml-3 mt-0.5 border-l border-gray-700">
+                    {group.items.map(item => (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        className={`flex items-center gap-2 px-3 py-1.5 text-sm transition-colors rounded ml-1 ${
+                          isActive(item.href)
+                            ? 'bg-gray-800 text-blue-300 border-l-2 border-blue-400 -ml-px'
+                            : 'text-gray-400 hover:bg-gray-800 hover:text-gray-200'
+                        }`}
+                      >
+                        <span className="text-sm">{item.icon}</span>
+                        <span>{item.label}</span>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </nav>
 
         {/* 底部导航 */}
         <div className="py-2 border-t border-gray-700">
-          {bottomNav.map(item => (
+          {BOTTOM_NAV.map(item => (
             <Link
               key={item.href}
               href={item.href}
@@ -100,14 +163,6 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
               <span>{item.label}</span>
             </Link>
           ))}
-        </div>
-
-        {/* 更多按钮 */}
-        <div className="p-2 border-t border-gray-700">
-          <button className="flex items-center gap-2 px-3 py-1.5 rounded text-sm text-gray-400 hover:bg-gray-800 w-full">
-            <span>更多</span>
-            <span className="ml-auto text-xs">▾</span>
-          </button>
         </div>
       </aside>
 

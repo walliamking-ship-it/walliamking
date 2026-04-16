@@ -98,6 +98,8 @@ export default function CustomersPage() {
   const [editingItem, setEditingItem] = useState<Partial<Customer> | undefined>();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [importModalOpen, setImportModalOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBatchConfirm, setShowBatchConfirm] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -155,7 +157,49 @@ export default function CustomersPage() {
     await loadData();
   };
 
+  // 批量选择
+  const toggleSelect = (id: string) => {
+    const newSet = new Set(selectedIds);
+    if (newSet.has(id)) newSet.delete(id);
+    else newSet.add(id);
+    setSelectedIds(newSet);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filtered.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filtered.map(i => i.id)));
+    }
+  };
+
+  const handleBatchDelete = async () => {
+    if (selectedIds.size === 0) return;
+    setShowBatchConfirm(true);
+  };
+
+  const confirmBatchDelete = async () => {
+    for (const id of selectedIds) {
+      await CustomerRepo.delete(id);
+    }
+    setSelectedIds(new Set());
+    setShowBatchConfirm(false);
+    await loadData();
+  };
+
+  // 选择列
+  const selectColumn: Column<Customer> = {
+    key: 'select',
+    label: (
+      <input type="checkbox" checked={filtered.length > 0 && selectedIds.size === filtered.length} onChange={toggleSelectAll} className="w-4 h-4 rounded" />
+    ),
+    render: (item: Customer) => (
+      <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelect(item.id)} className="w-4 h-4 rounded" onClick={e => e.stopPropagation()} />
+    ),
+  };
+
   const tableColumns: Column<Customer>[] = [
+    selectColumn,
     ...columns,
     {
       key: 'actions', label: '操作',
@@ -172,6 +216,17 @@ export default function CustomersPage() {
 
   return (
     <div className="flex flex-col h-full">
+      {/* 批量操作栏 */}
+      {selectedIds.size > 0 && (
+        <div className="px-5 py-2 bg-blue-50 border-b flex items-center justify-between">
+          <span className="text-sm text-blue-700">已选择 <strong>{selectedIds.size}</strong> 项</span>
+          <div className="flex gap-2">
+            <button onClick={() => setSelectedIds(new Set())} className="px-3 py-1 text-xs border border-gray-300 rounded hover:bg-gray-100">取消选择</button>
+            <button onClick={handleBatchDelete} className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700">批量删除 ({selectedIds.size})</button>
+          </div>
+        </div>
+      )}
+
       <PageHeader
         title="客户管理"
         searchPlaceholder="搜索 编号 / 名称 / 联系人 / 电话 / 地址 / 备注..."
@@ -214,6 +269,20 @@ export default function CustomersPage() {
         headers={['客户编号', '客户名称', '联系人', '电话', '地址', '备注']}
         fields={['code', 'name', 'contact', 'phone', 'address', 'remark']}
       />
+
+      {/* 批量删除确认 */}
+      {showBatchConfirm && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+            <h3 className="text-lg font-semibold mb-4">确认批量删除</h3>
+            <p className="text-gray-600 mb-6">确定要删除选中的 <strong>{selectedIds.size}</strong> 个客户吗？此操作不可撤销。</p>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setShowBatchConfirm(false)} className="px-4 py-2 text-sm border rounded hover:bg-gray-100">取消</button>
+              <button onClick={confirmBatchDelete} className="px-4 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700">确认删除</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
