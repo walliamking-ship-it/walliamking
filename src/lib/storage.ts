@@ -74,4 +74,5 @@ export const STORAGE_KEYS = {
   receivingOrderItems: 'receiving_order_items',
   cuttingDies: 'cutting_dies',
   artworks: 'artworks',
+  approvals: 'approvals',
 } as const;

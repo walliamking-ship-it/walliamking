@@ -65,6 +65,13 @@ const NAV_GROUPS: NavGroup[] = [
       { href: '/materials', label: '物料', icon: '📄' },
     ],
   },
+  {
+    label: '审批管理',
+    icon: '✅',
+    items: [
+      { href: '/approvals', label: '审批中心', icon: '✅' },
+    ],
+  },
 ];
 
 const BOTTOM_NAV: NavItem[] = [

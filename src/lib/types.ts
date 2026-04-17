@@ -663,3 +663,37 @@ export interface ProcessingOrder {
   入库状态: string;
   出库状态: string;
 }
+
+// ========== 审批流 ==========
+export type ApprovalType = 'sales_order' | 'purchase_order' | 'payment' | 'scrap';
+export type ApprovalStatus = 'draft' | 'pending' | 'approved' | 'rejected' | 'withdrawn';
+
+export interface ApprovalNode {
+  id: string;
+  节点名称: string;
+  审批人: string;       // 审批人用户名
+  审批人名称: string;    // 审批人姓名
+  状态: 'pending' | 'approved' | 'rejected' | 'skipped';
+  审批时间?: string;
+  审批意见?: string;
+}
+
+export interface Approval {
+  id: string;
+  单号: string;
+  类型: ApprovalType;           // 审批类型
+  类型名称: string;              // 审批类型中文名
+  关联单据id: string;           // 关联的单据ID
+  关联单据号: string;           // 关联的单据号
+  标题: string;                 // 审批标题
+  申请人: string;               // 申请人用户名
+  申请人名称: string;           // 申请人姓名
+  状态: ApprovalStatus;
+  当前节点: number;              // 当前在第几个节点
+  节点列表: ApprovalNode[];     // 审批节点列表
+  申请时间: string;
+  完成时间?: string;
+  备注?: string;
+  申请金额?: number;            // 申请金额（付款审批用）
+  制单人: string;
+}

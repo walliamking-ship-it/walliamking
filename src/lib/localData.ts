@@ -4,7 +4,7 @@
  */
 
 import { getItem, setItem, STORAGE_KEYS } from './storage';
-import { Customer, Vendor, Material, Product, Process, Workstation, SalesOrder, PurchaseOrder, Inventory, SalesOrderItem, DeliveryOrder, DeliveryOrderItem, PurchaseOrderItem, ReceivingOrder, ReceivingOrderItem, Warehouse, Employee, User, SalesInvoice, PurchaseInvoice, RoleKey, Bill, PaymentReceipt, PaymentMade, ScrapOrder, WorkOrder, JobReport, CuttingDie, Artwork } from './types';
+import { Customer, Vendor, Material, Product, Process, Workstation, SalesOrder, PurchaseOrder, Inventory, SalesOrderItem, DeliveryOrder, DeliveryOrderItem, PurchaseOrderItem, ReceivingOrder, ReceivingOrderItem, Warehouse, Employee, User, SalesInvoice, PurchaseInvoice, RoleKey, Bill, PaymentReceipt, PaymentMade, ScrapOrder, WorkOrder, JobReport, CuttingDie, Artwork, Approval } from './types';
 
 // ========== 初始数据（来自秒账） ==========
 
@@ -195,6 +195,11 @@ const INITIAL_SCRAP_ORDERS: ScrapOrder[] = [];
 const INITIAL_WORK_ORDERS: WorkOrder[] = [];
 const INITIAL_JOB_REPORTS: JobReport[] = [];
 
+// ========== 审批流 ==========
+const INITIAL_APPROVALS: Approval[] = [];
+export function getApprovals(): Approval[] { return getOrInitialize(STORAGE_KEYS.approvals, INITIAL_APPROVALS); }
+export function setApprovals(data: Approval[]) { setData(STORAGE_KEYS.approvals, data); }
+
 const INITIAL_SALES_ORDER_ITEMS: SalesOrderItem[] = [];
 const INITIAL_DELIVERY_ORDERS: DeliveryOrder[] = [];
 const INITIAL_DELIVERY_ORDER_ITEMS: DeliveryOrderItem[] = [];
@@ -344,6 +349,7 @@ export function resetAllData() {
   setScrapOrders(INITIAL_SCRAP_ORDERS);
   setWorkOrders(INITIAL_WORK_ORDERS);
   setJobReports(INITIAL_JOB_REPORTS);
+  setApprovals(INITIAL_APPROVALS);
   setCuttingDies(INITIAL_CUTTING_DIES);
   setArtworks(INITIAL_ARTWORKS);
   setItem(STORAGE_KEYS.lastSync, new Date().toISOString());

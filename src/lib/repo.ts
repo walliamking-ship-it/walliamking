@@ -3,7 +3,7 @@
  * USE_MOCK_DATA=true 时数据保存到浏览器localStorage，刷新页面不丢失
  */
 
-import { Customer, Vendor, Material, Product, Process, Workstation, SalesOrder, PurchaseOrder, Inventory, SalesOrderItem, DeliveryOrder, DeliveryOrderItem, PurchaseOrderItem, ReceivingOrder, ReceivingOrderItem, Warehouse, Employee, User, SalesInvoice, PurchaseInvoice, Bill, PaymentReceipt, PaymentMade, ScrapOrder, WorkOrder, JobReport, CuttingDie, Artwork } from './types';
+import { Customer, Vendor, Material, Product, Process, Workstation, SalesOrder, PurchaseOrder, Inventory, SalesOrderItem, DeliveryOrder, DeliveryOrderItem, PurchaseOrderItem, ReceivingOrder, ReceivingOrderItem, Warehouse, Employee, User, SalesInvoice, PurchaseInvoice, Bill, PaymentReceipt, PaymentMade, ScrapOrder, WorkOrder, JobReport, CuttingDie, Artwork, Approval } from './types';
 import { DataService, TABLE_IDS } from './api';
 import { USE_MOCK_DATA } from './mock-data';
 import {
@@ -35,6 +35,7 @@ import {
   getCuttingDies, setCuttingDies,
   getArtworks, setArtworks,
   getUsers, setUsers,
+  getApprovals, setApprovals,
 } from './localData';
 
 // ========== 客户 ==========
@@ -1091,6 +1092,121 @@ export const UserRepo = {
 
   async delete(id: string): Promise<boolean> {
     setUsers(getUsers().filter(u => u.id !== id));
+    return true;
+  },
+};
+
+// ========== 审批流 ==========
+export const ApprovalRepo = {
+  async findAll(): Promise<Approval[]> {
+    return getApprovals();
+  },
+
+  async findById(id: string): Promise<Approval | undefined> {
+    return getApprovals().find(a => a.id === id);
+  },
+
+  async findByType(type: Approval['类型']): Promise<Approval[]> {
+    return getApprovals().filter(a => a.类型 === type);
+  },
+
+  async findPending(approver: string): Promise<Approval[]> {
+    return getApprovals().filter(a =>
+      a.状态 === 'pending' &&
+      a.节点列表.some(n => n.审批人 === approver && n.状态 === 'pending')
+    );
+  },
+
+  async findBy关联单据id(关联单据id: string): Promise<Approval[]> {
+    return getApprovals().filter(a => a.关联单据id ===关联单据id);
+  },
+
+  async create(data: Omit<Approval, 'id'>): Promise<Approval> {
+    const newItem = { ...data, id: String(Date.now()) } as Approval;
+    setApprovals([...getApprovals(), newItem]);
+    return newItem;
+  },
+
+  async update(id: string, data: Partial<Approval>): Promise<Approval | undefined> {
+    const all = getApprovals();
+    const idx = all.findIndex(a => a.id === id);
+    if (idx === -1) return undefined;
+    const updated = [...all];
+    updated[idx] = { ...updated[idx], ...data };
+    setApprovals(updated);
+    return updated[idx];
+  },
+
+  async approve(id: string, approver: string, 审批意见?: string): Promise<boolean> {
+    const all = getApprovals();
+    const idx = all.findIndex(a => a.id === id);
+    if (idx === -1) return false;
+    const approval = all[idx];
+    const currentNode = approval.节点列表[approval.当前节点];
+    if (!currentNode || currentNode.审批人 !== approver) return false;
+
+    // 更新当前节点
+    currentNode.状态 = 'approved';
+    currentNode.审批时间 = new Date().toISOString().slice(0, 10);
+    currentNode.审批意见 = 审批意见;
+
+    // 移动到下一节点或完成
+    const nextNodeIdx = approval.当前节点 + 1;
+    if (nextNodeIdx >= approval.节点列表.length) {
+      // 全部审批完成
+      approval.状态 = 'approved';
+      approval.完成时间 = new Date().toISOString().slice(0, 10);
+    } else {
+      approval.当前节点 = nextNodeIdx;
+    }
+
+    setApprovals([...all]);
+    return true;
+  },
+
+  async reject(id: string, approver: string, 审批意见?: string): Promise<boolean> {
+    const all = getApprovals();
+    const idx = all.findIndex(a => a.id === id);
+    if (idx === -1) return false;
+    const approval = all[idx];
+    const currentNode = approval.节点列表[approval.当前节点];
+    if (!currentNode || currentNode.审批人 !== approver) return false;
+
+    currentNode.状态 = 'rejected';
+    currentNode.审批时间 = new Date().toISOString().slice(0, 10);
+    currentNode.审批意见 = 审批意见;
+    approval.状态 = 'rejected';
+    approval.完成时间 = new Date().toISOString().slice(0, 10);
+
+    setApprovals([...all]);
+    return true;
+  },
+
+  async withdraw(id: string): Promise<boolean> {
+    const all = getApprovals();
+    const idx = all.findIndex(a => a.id === id);
+    if (idx === -1) return false;
+    const approval = all[idx];
+    if (approval.状态 !== 'pending' && approval.状态 !== 'draft') return false;
+    approval.状态 = 'withdrawn';
+    setApprovals([...all]);
+    return true;
+  },
+
+  async submit(id: string): Promise<boolean> {
+    const all = getApprovals();
+    const idx = all.findIndex(a => a.id === id);
+    if (idx === -1) return false;
+    const approval = all[idx];
+    if (approval.状态 !== 'draft') return false;
+    approval.状态 = 'pending';
+    approval.申请时间 = new Date().toISOString().slice(0, 10);
+    setApprovals([...all]);
+    return true;
+  },
+
+  async delete(id: string): Promise<boolean> {
+    setApprovals(getApprovals().filter(a => a.id !== id));
     return true;
   },
 };
