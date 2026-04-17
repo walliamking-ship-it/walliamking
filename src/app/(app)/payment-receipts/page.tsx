@@ -189,7 +189,7 @@ export default function PaymentReceiptsPage() {
           if (!so) continue;
           const unpaid = so.未收款项 || 0;
           const ratio = totalUnpaid > 0 ? unpaid / totalUnpaid : 1 / form.关联销售订单ids.length;
-          const amountToAdd = Math.min(form.收款金额 * ratio, unpaid);
+          const amountToAdd = Math.min(unpaid * ratio, unpaid);
           if (amountToAdd <= 0) continue;
           const newReceived = (so.已收款 || 0) + amountToAdd;
           const newUnpaid = Math.max(0, (so.合同金额 || 0) - newReceived);

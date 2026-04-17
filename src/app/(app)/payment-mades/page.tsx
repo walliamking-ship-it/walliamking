@@ -185,7 +185,7 @@ export default function PaymentMadesPage() {
           if (!po) continue;
           const unpaid = po.未付款 || 0;
           const ratio = totalUnpaid > 0 ? unpaid / totalUnpaid : 1 / form.关联采购订单ids.length;
-          const amountToAdd = Math.min(form.付款金额 * ratio, unpaid);
+          const amountToAdd = Math.min(unpaid * ratio, unpaid);
           if (amountToAdd <= 0) continue;
           const newPaid = (po.已付款 || 0) + amountToAdd;
           const newUnpaid = Math.max(0, (po.合同金额 || 0) - newPaid);

@@ -399,9 +399,41 @@ export default function InvoicesPage() {
     }
   });
 
+  // 更新销售订单的开票状态
+  const updateSalesOrderInvoiceStatus = async (salesOrderId: string) => {
+    const allInvoices = await SalesInvoiceRepo.findAll();
+    const orderInvoices = allInvoices.filter(inv => inv.关联销售订单ids.includes(salesOrderId));
+    const order = await SalesOrderRepo.findById(salesOrderId);
+    if (!order) return;
+    const totalInvoiced = orderInvoices.reduce((s, inv) => s + (inv.金额 || 0), 0);
+    const contractAmount = order.合同金额 || 0;
+    let invoiceStatus: SalesOrder['开票状态'] = '未开票';
+    if (totalInvoiced >= contractAmount && contractAmount > 0) invoiceStatus = '全部开票';
+    else if (totalInvoiced > 0) invoiceStatus = '部分开票';
+    await SalesOrderRepo.update(salesOrderId, { 开票状态: invoiceStatus });
+  };
+
+  // 更新采购订单的开票状态
+  const updatePurchaseOrderInvoiceStatus = async (purchaseOrderId: string) => {
+    const allInvoices = await PurchaseInvoiceRepo.findAll();
+    const orderInvoices = allInvoices.filter(inv => inv.关联采购订单ids.includes(purchaseOrderId));
+    const order = await PurchaseOrderRepo.findById(purchaseOrderId);
+    if (!order) return;
+    const totalInvoiced = orderInvoices.reduce((s, inv) => s + (inv.金额 || 0), 0);
+    const contractAmount = order.合同金额 || 0;
+    let invoiceStatus: PurchaseOrder['开票状态'] = '未开票';
+    if (totalInvoiced >= contractAmount && contractAmount > 0) invoiceStatus = '全部开票';
+    else if (totalInvoiced > 0) invoiceStatus = '部分开票';
+    await PurchaseOrderRepo.update(purchaseOrderId, { 开票状态: invoiceStatus });
+  };
+
   const handleSalesSave = async (form: Omit<SalesInvoice, 'id'>) => {
     if (editingSales?.id) await SalesInvoiceRepo.update(editingSales.id, form);
     else await SalesInvoiceRepo.create(form);
+    // 更新关联销售订单的开票状态
+    for (const soId of form.关联销售订单ids) {
+      await updateSalesOrderInvoiceStatus(soId);
+    }
     await loadData();
     setEditingSales(undefined);
   };
@@ -409,6 +441,10 @@ export default function InvoicesPage() {
   const handlePurchaseSave = async (form: Omit<PurchaseInvoice, 'id'>) => {
     if (editingPurchase?.id) await PurchaseInvoiceRepo.update(editingPurchase.id, form);
     else await PurchaseInvoiceRepo.create(form);
+    // 更新关联采购订单的开票状态
+    for (const poId of form.关联采购订单ids) {
+      await updatePurchaseOrderInvoiceStatus(poId);
+    }
     await loadData();
     setEditingPurchase(undefined);
   };
