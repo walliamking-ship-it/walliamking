@@ -3,7 +3,7 @@
  * USE_MOCK_DATA=true 时数据保存到浏览器localStorage，刷新页面不丢失
  */
 
-import { Customer, Vendor, Material, Product, Process, Workstation, SalesOrder, PurchaseOrder, Inventory, SalesOrderItem, DeliveryOrder, DeliveryOrderItem, PurchaseOrderItem, ReceivingOrder, ReceivingOrderItem, Warehouse, Employee, SalesInvoice, PurchaseInvoice, Bill, PaymentReceipt, PaymentMade, ScrapOrder, WorkOrder, JobReport, CuttingDie, Artwork } from './types';
+import { Customer, Vendor, Material, Product, Process, Workstation, SalesOrder, PurchaseOrder, Inventory, SalesOrderItem, DeliveryOrder, DeliveryOrderItem, PurchaseOrderItem, ReceivingOrder, ReceivingOrderItem, Warehouse, Employee, User, SalesInvoice, PurchaseInvoice, Bill, PaymentReceipt, PaymentMade, ScrapOrder, WorkOrder, JobReport, CuttingDie, Artwork } from './types';
 import { DataService, TABLE_IDS } from './api';
 import { USE_MOCK_DATA } from './mock-data';
 import {
@@ -34,6 +34,7 @@ import {
   getInventory, setInventory,
   getCuttingDies, setCuttingDies,
   getArtworks, setArtworks,
+  getUsers, setUsers,
 } from './localData';
 
 // ========== 客户 ==========
@@ -1038,6 +1039,58 @@ export const ArtworkRepo = {
   },
   async delete(id: string): Promise<boolean> {
     setArtworks(getArtworks().filter(a => a.id !== id));
+    return true;
+  },
+};
+
+// ========== 用户登录 ==========
+export const UserRepo = {
+  async findAll(): Promise<User[]> {
+    return getUsers();
+  },
+
+  async findByUsername(username: string): Promise<User | undefined> {
+    return getUsers().find(u => u.username === username);
+  },
+
+  async findById(id: string): Promise<User | undefined> {
+    return getUsers().find(u => u.id === id);
+  },
+
+  async create(data: Omit<User, 'id'>): Promise<User> {
+    if (getUsers().find(u => u.username === data.username)) {
+      throw new Error(`用户名 "${data.username}" 已存在`);
+    }
+    const newUser = { ...data, id: String(Date.now()) } as User;
+    setUsers([...getUsers(), newUser]);
+    return newUser;
+  },
+
+  async update(id: string, data: Partial<User>): Promise<User | undefined> {
+    const all = getUsers();
+    const idx = all.findIndex(u => u.id === id);
+    if (idx === -1) return undefined;
+    if (data.username && all.find(u => u.id !== id && u.username === data.username)) {
+      throw new Error(`用户名 "${data.username}" 已存在`);
+    }
+    const updated = [...all];
+    updated[idx] = { ...updated[idx], ...data };
+    setUsers(updated);
+    return updated[idx];
+  },
+
+  async updatePassword(id: string, passwordHash: string): Promise<boolean> {
+    const all = getUsers();
+    const idx = all.findIndex(u => u.id === id);
+    if (idx === -1) return false;
+    const updated = [...all];
+    updated[idx] = { ...updated[idx], passwordHash };
+    setUsers(updated);
+    return true;
+  },
+
+  async delete(id: string): Promise<boolean> {
+    setUsers(getUsers().filter(u => u.id !== id));
     return true;
   },
 };

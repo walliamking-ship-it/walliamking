@@ -332,6 +332,18 @@ export interface PurchaseInvoice {
   制单人: string;
 }
 
+// ========== 系统用户（登录账号）==========
+export interface User {
+  id: string;
+  username: string;          // 登录用户名
+  passwordHash: string;        // 加密后的密码
+  employeeId: string;         // 关联员工ID
+  roleKey: RoleKey;
+  status: 'active' | 'inactive';
+  createdAt: string;
+  lastLogin?: string;
+}
+
 // ========== 员工 ==========
 export interface Employee {
   id: string;

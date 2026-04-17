@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
 
 // ── 菜单结构定义 ──────────────────────────────────────────
 type NavItem = { href: string; label: string; icon: string };
@@ -78,7 +78,28 @@ const BOTTOM_NAV: NavItem[] = [
 
 export default function Sidebar({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [currentUser, setCurrentUser] = useState<{username: string; employeeName: string} | null>(null);
+
+  // 加载当前用户
+  useEffect(() => {
+    const userStr = localStorage.getItem('current_user');
+    if (userStr) {
+      try {
+        setCurrentUser(JSON.parse(userStr));
+      } catch {}
+    }
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch {}
+    localStorage.removeItem('erp_token');
+    localStorage.removeItem('current_user');
+    router.push('/login');
+  };
 
   const isActive = (href: string) =>
     pathname === href || pathname.startsWith(href + '/');
@@ -98,9 +119,9 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
 
         {/* 用户信息 */}
         <div className="px-3 py-3 border-b border-gray-700">
-          <div className="text-sm font-semibold text-white">金湛</div>
-          <div className="text-xs text-gray-400 mt-0.5">上海申竭诚包装</div>
-          <div className="text-xs text-gray-500 mt-0.5">2026年4月15日 星期三</div>
+          <div className="text-sm font-semibold text-white">{currentUser?.employeeName || currentUser?.username || '未登录'}</div>
+          <div className="text-xs text-gray-400 mt-0.5">@{currentUser?.username}</div>
+          <div className="text-xs text-gray-500 mt-0.5">{new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}</div>
         </div>
 
         {/* 主导航 — 分组可折叠 */}
@@ -166,6 +187,14 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
               <span>{item.label}</span>
             </Link>
           ))}
+          {/* 登出按钮 */}
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm transition-colors text-gray-400 hover:bg-gray-800 hover:text-red-400 mt-1"
+          >
+            <span>🚪</span>
+            <span>退出登录</span>
+          </button>
         </div>
       </aside>
 

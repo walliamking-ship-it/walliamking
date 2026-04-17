@@ -4,7 +4,7 @@
  */
 
 import { getItem, setItem, STORAGE_KEYS } from './storage';
-import { Customer, Vendor, Material, Product, Process, Workstation, SalesOrder, PurchaseOrder, Inventory, SalesOrderItem, DeliveryOrder, DeliveryOrderItem, PurchaseOrderItem, ReceivingOrder, ReceivingOrderItem, Warehouse, Employee, SalesInvoice, PurchaseInvoice, RoleKey, Bill, PaymentReceipt, PaymentMade, ScrapOrder, WorkOrder, JobReport, CuttingDie, Artwork } from './types';
+import { Customer, Vendor, Material, Product, Process, Workstation, SalesOrder, PurchaseOrder, Inventory, SalesOrderItem, DeliveryOrder, DeliveryOrderItem, PurchaseOrderItem, ReceivingOrder, ReceivingOrderItem, Warehouse, Employee, User, SalesInvoice, PurchaseInvoice, RoleKey, Bill, PaymentReceipt, PaymentMade, ScrapOrder, WorkOrder, JobReport, CuttingDie, Artwork } from './types';
 
 // ========== 初始数据（来自秒账） ==========
 
@@ -171,6 +171,13 @@ const INITIAL_EMPLOYEES: Employee[] = [
   { id: '5', name: '仓管小李', roleKey: 'warehouse', phone: '13900000005', email: 'cangguan@shanghai-shenji.com', status: '正常' },
 ];
 
+// 默认密码: admin123（首次登录后请立即修改）
+const INITIAL_USERS: User[] = [
+  { id: '1', username: 'admin', passwordHash: '$2b$10$RzYeSgQyej959T98Qvva0et5Q3otEs8WLNDrpiWWIWURY9lUPL4Ka', employeeId: '1', roleKey: 'owner', status: 'active', createdAt: '2026-01-01' },
+];
+export function getUsers(): User[] { return getOrInitialize(STORAGE_KEYS.users, INITIAL_USERS); }
+export function setUsers(data: User[]) { setData(STORAGE_KEYS.users, data); }
+
 const INITIAL_SALES_INVOICES: SalesInvoice[] = [
   { id: '1', 单号: 'FP20260415001', 发票号: 'FP12345678', 开票日期: '2026-04-15', 客户名称: 'C05-白领仕', 关联销售订单ids: ['1'], 金额: 3780.00, 税率: 0.13, 税额: 428.32, 状态: '已开', 备注: '', 制单人: '李紫璘' },
 ];
@@ -327,6 +334,7 @@ export function resetAllData() {
   setReceivingOrders(INITIAL_RECEIVING_ORDERS);
   setReceivingOrderItems(INITIAL_RECEIVING_ORDER_ITEMS);
   setEmployees(INITIAL_EMPLOYEES);
+  setUsers(INITIAL_USERS);
   setSalesInvoices(INITIAL_SALES_INVOICES);
   setPurchaseInvoices(INITIAL_PURCHASE_INVOICES);
   setBills(INITIAL_BILLS);
