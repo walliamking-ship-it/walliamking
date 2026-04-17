@@ -175,18 +175,28 @@ export default function PaymentReceiptsPage() {
     if (editingItem?.id) {
       await PaymentReceiptRepo.update(editingItem.id, form);
     } else {
-      const created = await PaymentReceiptRepo.create(form);
-      // 自动更新关联的销售订单已收款
+      await PaymentReceiptRepo.create(form);
+      // 自动更新关联的销售订单已收款和状态
       if (form.状态 === '已确认') {
+        // 计算各订单未收款合计
+        const totalUnpaid = form.关联销售订单ids.reduce((sum, soId) => {
+          const so = salesOrders.find(s => s.id === soId);
+          return sum + (so ? (so.未收款项 || 0) : 0);
+        }, 0);
+        // 按未收款比例分配收款金额
         for (const soId of form.关联销售订单ids) {
           const so = salesOrders.find(s => s.id === soId);
           if (!so) continue;
-          const newReceived = so.已收款 + form.收款金额 * (so.合同金额 > 0 ? so.合同金额 / form.收款金额 : 0);
-          const ratio = form.收款金额 / (so.合同金额 || 1);
-          const amountToAdd = Math.min(form.收款金额, so.未收款项) * ratio;
-          const new收款状态 = newReceived >= so.合同金额 ? '全部收款' : '部分收款';
+          const unpaid = so.未收款项 || 0;
+          const ratio = totalUnpaid > 0 ? unpaid / totalUnpaid : 1 / form.关联销售订单ids.length;
+          const amountToAdd = Math.min(form.收款金额 * ratio, unpaid);
+          if (amountToAdd <= 0) continue;
+          const newReceived = (so.已收款 || 0) + amountToAdd;
+          const newUnpaid = Math.max(0, (so.合同金额 || 0) - newReceived);
+          const new收款状态 = newUnpaid <= 0 ? '全部收款' : '部分收款';
           await SalesOrderRepo.update(soId, {
-            已收款: so.已收款 + amountToAdd,
+            已收款: newReceived,
+            未收款项: newUnpaid,
             收款状态: new收款状态,
           });
         }

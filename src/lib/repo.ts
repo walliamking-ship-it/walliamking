@@ -458,6 +458,33 @@ export const PurchaseOrderRepo = {
     }
     return await DataService.delete(TABLE_IDS.purchaseOrders, id);
   },
+  /**
+   * 从订单明细重新计算并更新订单的合同金额、已收货、未付款、付款状态、收货状态
+   */
+  async recomputeAmounts(id: string): Promise<PurchaseOrder | undefined> {
+    const order = await this.findById(id);
+    if (!order) return undefined;
+    const items = await PurchaseOrderItemRepo.findByPurchaseOrderId(id);
+    const contractAmount = items.reduce((s, i) => s + (i.金额 || 0), 0);
+    const receivedAmount = items.reduce((s, i) => s + (i.已收货数量 || 0) * (i.单价 || 0), 0);
+    const paidAmount = order.已付款 ?? 0;
+    const unpaidAmount = Math.max(0, contractAmount - paidAmount);
+    // 计算付款状态
+    let paymentStatus: PurchaseOrder['付款状态'] = '未付款';
+    if (paidAmount > 0 && paidAmount < contractAmount) paymentStatus = '部分付款';
+    else if (paidAmount >= contractAmount) paymentStatus = '全部付款';
+    // 计算收货状态
+    let receivingStatus: PurchaseOrder['收货状态'] = '未收货';
+    if (receivedAmount > 0 && receivedAmount < contractAmount) receivingStatus = '部分收货';
+    else if (receivedAmount >= contractAmount) receivingStatus = '全部收货';
+    return await this.update(id, {
+      合同金额: contractAmount,
+      已收货: receivedAmount,
+      未付款: unpaidAmount,
+      付款状态: paymentStatus,
+      收货状态: receivingStatus,
+    });
+  },
 };
 
 // ========== 库存 ==========
@@ -520,6 +547,9 @@ export const WarehouseRepo = {
 export const SalesOrderItemRepo = {
   async findAll(): Promise<SalesOrderItem[]> {
     return getSalesOrderItems();
+  },
+  async findById(id: string): Promise<SalesOrderItem | undefined> {
+    return getSalesOrderItems().find(i => i.id === id);
   },
   async findBySalesOrderId(salesOrderId: string): Promise<SalesOrderItem[]> {
     return getSalesOrderItems().filter(i => i.销售订单id === salesOrderId);
@@ -602,6 +632,9 @@ export const DeliveryOrderItemRepo = {
 export const PurchaseOrderItemRepo = {
   async findAll(): Promise<PurchaseOrderItem[]> {
     return getPurchaseOrderItems();
+  },
+  async findById(id: string): Promise<PurchaseOrderItem | undefined> {
+    return getPurchaseOrderItems().find(i => i.id === id);
   },
   async findByPurchaseOrderId(purchaseOrderId: string): Promise<PurchaseOrderItem[]> {
     return getPurchaseOrderItems().filter(i => i.采购订单id === purchaseOrderId);

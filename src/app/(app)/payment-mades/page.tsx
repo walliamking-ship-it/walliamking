@@ -175,14 +175,24 @@ export default function PaymentMadesPage() {
     } else {
       await PaymentMadeRepo.create(form);
       if (form.状态 === '已确认') {
+        // 按未付款比例分配付款金额
+        const totalUnpaid = form.关联采购订单ids.reduce((sum, poId) => {
+          const po = purchaseOrders.find(p => p.id === poId);
+          return sum + (po ? (po.未付款 || 0) : 0);
+        }, 0);
         for (const poId of form.关联采购订单ids) {
           const po = purchaseOrders.find(p => p.id === poId);
           if (!po) continue;
-          const ratio = form.付款金额 / (po.合同金额 || 1);
-          const amountToAdd = Math.min(form.付款金额, po.未付款) * ratio;
-          const new付款状态 = (po.已付款 + amountToAdd) >= po.合同金额 ? '全部付款' : '部分付款';
+          const unpaid = po.未付款 || 0;
+          const ratio = totalUnpaid > 0 ? unpaid / totalUnpaid : 1 / form.关联采购订单ids.length;
+          const amountToAdd = Math.min(form.付款金额 * ratio, unpaid);
+          if (amountToAdd <= 0) continue;
+          const newPaid = (po.已付款 || 0) + amountToAdd;
+          const newUnpaid = Math.max(0, (po.合同金额 || 0) - newPaid);
+          const new付款状态 = newUnpaid <= 0 ? '全部付款' : '部分付款';
           await PurchaseOrderRepo.update(poId, {
-            已付款: po.已付款 + amountToAdd,
+            已付款: newPaid,
+            未付款: newUnpaid,
             付款状态: new付款状态,
           });
         }

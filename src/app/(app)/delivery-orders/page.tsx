@@ -337,7 +337,7 @@ export default function DeliveryOrdersPage() {
       .some(v => v?.toLowerCase().includes(q));
   });
 
-  const handleSave = async (form: Partial<DeliveryOrder>, rows: DeliveryItemRow[]) => {
+  const handleSave = async (form: Partial<DeliveryOrder>, rows: DeliveryItemRow[], action?: 'save' | 'complete') => {
     if (editingItem?.id) {
       await DeliveryOrderRepo.update(editingItem.id, form);
       const existingItems = await DeliveryOrderItemRepo.findByDeliveryOrderId(editingItem.id);
@@ -371,6 +371,34 @@ export default function DeliveryOrdersPage() {
         });
       }
     }
+
+    // 送货单完成时：更新销售订单明细已送货数量，并触发状态重算
+    if (action === 'complete' || (!editingItem?.id && form.状态 === '已完成')) {
+      const targetId = editingItem?.id || (await DeliveryOrderRepo.findAll()).find(d => d.单号 === form.单号)?.id;
+      if (targetId) {
+        const deliveryItems = await DeliveryOrderItemRepo.findByDeliveryOrderId(targetId);
+        // 汇总各销售订单明细的新增送货量
+        const qtyMap: Record<string, number> = {};
+        for (const di of deliveryItems) {
+          qtyMap[di.销售订单明细id] = (qtyMap[di.销售订单明细id] || 0) + di.本次送货数量;
+        }
+        // 更新每条明细的已送货数量
+        for (const [itemId, addQty] of Object.entries(qtyMap)) {
+          const item = await SalesOrderItemRepo.findById(itemId);
+          if (item) {
+            await SalesOrderItemRepo.update(itemId, {
+              已送货数量: (item.已送货数量 || 0) + addQty,
+            });
+          }
+        }
+        // 重新计算销售订单的送货状态
+        const soId = form.销售订单id;
+        if (soId) {
+          await SalesOrderRepo.recomputeAmounts(soId);
+        }
+      }
+    }
+
     await loadData();
     setEditingItem(undefined);
   };
@@ -383,6 +411,34 @@ export default function DeliveryOrdersPage() {
   const handleDelete = async (id: string) => {
     if (!confirm('确定删除该送货单？')) return;
     await DeliveryOrderRepo.delete(id);
+    await loadData();
+  };
+
+  // 确认完成送货单：更新销售订单明细已送货数量，并重新计算送货状态
+  const handleComplete = async (item: DeliveryOrder) => {
+    if (!confirm(`确认完成送货单 ${item.单号}？\n这将更新关联销售订单的已送货数量。`)) return;
+    // 获取该送货单的所有明细
+    const deliveryItems = await DeliveryOrderItemRepo.findByDeliveryOrderId(item.id);
+    // 按销售订单明细汇总送货量
+    const qtyMap: Record<string, number> = {};
+    for (const di of deliveryItems) {
+      qtyMap[di.销售订单明细id] = (qtyMap[di.销售订单明细id] || 0) + (di.本次送货数量 || 0);
+    }
+    // 更新每条销售订单明细的已送货数量
+    for (const [itemId, addQty] of Object.entries(qtyMap)) {
+      const soItem = await SalesOrderItemRepo.findById(itemId);
+      if (soItem) {
+        await SalesOrderItemRepo.update(itemId, {
+          已送货数量: (soItem.已送货数量 || 0) + addQty,
+        });
+      }
+    }
+    // 更新送货单状态为已完成
+    await DeliveryOrderRepo.update(item.id, { 状态: '已完成' });
+    // 重新计算销售订单的送货状态
+    if (item.销售订单id) {
+      await SalesOrderRepo.recomputeAmounts(item.销售订单id);
+    }
     await loadData();
   };
 
@@ -509,6 +565,9 @@ export default function DeliveryOrdersPage() {
               )}
             </div>
             <div className="p-3 border-t flex gap-2">
+              {item.状态 !== '已完成' && (
+                <button onClick={() => handleComplete(item)} className="flex-1 px-3 py-1.5 text-sm bg-green-600 text-white rounded hover:bg-green-700">确认完成</button>
+              )}
               <button onClick={() => handleEdit(item)} className="flex-1 px-3 py-1.5 text-sm border rounded hover:bg-gray-50">编辑</button>
               <button onClick={() => handleDelete(item.id)} className="flex-1 px-3 py-1.5 text-sm border rounded hover:bg-red-50 hover:text-red-600 hover:border-red-200">删除</button>
             </div>

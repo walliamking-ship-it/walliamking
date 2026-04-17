@@ -380,6 +380,29 @@ export default function ReceivingOrdersPage() {
     setModalOpen(true);
   };
 
+  // 确认完成收货单：更新采购订单明细已收货数量，并重新计算收货状态
+  const handleComplete = async (item: ReceivingOrder) => {
+    if (!confirm(`确认完成收货单 ${item.单号}？\n这将更新关联采购订单的已收货数量。`)) return;
+    const receivingItems = await ReceivingOrderItemRepo.findByReceivingOrderId(item.id);
+    const qtyMap: Record<string, number> = {};
+    for (const ri of receivingItems) {
+      qtyMap[ri.采购订单明细id] = (qtyMap[ri.采购订单明细id] || 0) + (ri.本次收货数量 || 0);
+    }
+    for (const [itemId, addQty] of Object.entries(qtyMap)) {
+      const poItem = await PurchaseOrderItemRepo.findById(itemId);
+      if (poItem) {
+        await PurchaseOrderItemRepo.update(itemId, {
+          已收货数量: (poItem.已收货数量 || 0) + addQty,
+        });
+      }
+    }
+    await ReceivingOrderRepo.update(item.id, { 状态: '已完成' });
+    if (item.采购订单id) {
+      await PurchaseOrderRepo.recomputeAmounts(item.采购订单id);
+    }
+    await loadData();
+  };
+
   const handleDelete = async (id: string) => {
     if (!confirm('确定删除该收货单？')) return;
     await ReceivingOrderRepo.delete(id);
@@ -509,6 +532,9 @@ export default function ReceivingOrdersPage() {
               )}
             </div>
             <div className="p-3 border-t flex gap-2">
+              {item.状态 !== '已完成' && (
+                <button onClick={() => handleComplete(item)} className="flex-1 px-3 py-1.5 text-sm bg-green-600 text-white rounded hover:bg-green-700">确认完成</button>
+              )}
               <button onClick={() => handleEdit(item)} className="flex-1 px-3 py-1.5 text-sm border rounded hover:bg-gray-50">编辑</button>
               <button onClick={() => handleDelete(item.id)} className="flex-1 px-3 py-1.5 text-sm border rounded hover:bg-red-50 hover:text-red-600 hover:border-red-200">删除</button>
             </div>
