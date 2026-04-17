@@ -174,6 +174,7 @@ const INITIAL_EMPLOYEES: Employee[] = [
 // 默认密码: admin123（首次登录后请立即修改）
 const INITIAL_USERS: User[] = [
   { id: '1', username: 'admin', passwordHash: '$2b$10$RzYeSgQyej959T98Qvva0et5Q3otEs8WLNDrpiWWIWURY9lUPL4Ka', employeeId: '1', roleKey: 'owner', status: 'active', createdAt: '2026-01-01' },
+  { id: '2', username: 'jinzhan', passwordHash: '$2b$10$RzYeSgQyej959T98Qvva0et5Q3otEs8WLNDrpiWWIWURY9lUPL4Ka', employeeId: '1', roleKey: 'owner', status: 'active', createdAt: '2026-01-01' },
 ];
 export function getUsers(): User[] { return getOrInitialize(STORAGE_KEYS.users, INITIAL_USERS); }
 export function setUsers(data: User[]) { setData(STORAGE_KEYS.users, data); }
