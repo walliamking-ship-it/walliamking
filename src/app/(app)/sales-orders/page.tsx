@@ -342,6 +342,12 @@ export default function SalesOrdersPage() {
   // 加载关联数据（当选中订单时）
   useEffect(() => {
     if (!selectedId) return;
+    // 同时加载订单明细
+    if (!orderItemsMap[selectedId]) {
+      SalesOrderItemRepo.findBySalesOrderId(selectedId).then(items => {
+        setOrderItemsMap(prev => ({ ...prev, [selectedId]: items }));
+      });
+    }
     Promise.all([
       DeliveryOrderRepo.findAll(),
       PaymentReceiptRepo.findAll(),
