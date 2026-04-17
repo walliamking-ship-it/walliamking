@@ -167,4 +167,4 @@ export const mockInventory: Inventory[] = [
 ];
 
 // 启用模拟数据模式
-export const USE_MOCK_DATA = true;
+export const USE_MOCK_DATA = false;
