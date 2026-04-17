@@ -230,6 +230,28 @@ function StatusTag({ status }: { status: WorkOrder['状态'] }) {
   return <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${colors[status]}`}>{status}</span>;
 }
 
+function ProgressBar({ value, max }: { value: number; max: number }) {
+  const pct = max > 0 ? Math.min(100, Math.round((value / max) * 100)) : 0;
+  const color = pct >= 100 ? 'bg-green-500' : pct > 50 ? 'bg-blue-500' : 'bg-yellow-400';
+  return (
+    <div className="flex items-center gap-2">
+      <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden w-16">
+        <div className={`h-full ${color} rounded-full transition-all`} style={{ width: `${pct}%` }} />
+      </div>
+      <span className="text-xs text-gray-500 w-8">{pct}%</span>
+    </div>
+  );
+}
+
+function ProcessStatusTag({ status }: { status: WorkOrderProcess['状态'] }) {
+  const colors: Record<WorkOrderProcess['状态'], string> = {
+    '待报工': 'bg-gray-100 text-gray-500',
+    '报工中': 'bg-yellow-50 text-yellow-700',
+    '已完成': 'bg-green-50 text-green-700',
+  };
+  return <span className={`inline-flex px-1.5 py-0.5 rounded text-xs ${colors[status]}`}>{status}</span>;
+}
+
 export default function WorkOrdersPage() {
   const [data, setData] = useState<WorkOrder[]>([]);
   const [salesOrders, setSalesOrders] = useState<SalesOrder[]>([]);
@@ -240,6 +262,8 @@ export default function WorkOrdersPage() {
   const [statusFilter, setStatusFilter] = useState<WorkOrder['状态'] | ''>('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<WorkOrder | undefined>();
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [generateModalOpen, setGenerateModalOpen] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -281,21 +305,36 @@ export default function WorkOrdersPage() {
     { key: '单号', label: '单号', sortable: true },
     { key: '关联销售订单号', label: '关联销售单' },
     { key: '产品名称', label: '产品', sortable: true },
-    { key: '物料编码', label: '物料编码' },
     { key: '计划数量', label: '计划数量', sortable: true },
     { key: '已完成数量', label: '已完成', sortable: true },
+    { key: 'progress', label: '进度', render: (w: WorkOrder) => <ProgressBar value={w.已完成数量} max={w.计划数量} /> },
     { key: '执行单位', label: '执行单位' },
     { key: '状态', label: '状态', sortable: true, render: (w: WorkOrder) => <StatusTag status={w.状态} /> },
-    { key: '计划完成日期', label: '计划完成日期' },
-    { key: '制单人', label: '制单人' },
-    { key: '备注', label: '备注' },
+    { key: '计划完成日期', label: '计划完成' },
     { key: 'actions', label: '操作', render: (w: WorkOrder) => (
       <div className="flex gap-1">
-        <button onClick={(e) => { e.stopPropagation(); setEditingItem(w); setModalOpen(true); }} className="px-2 py-0.5 text-xs border rounded hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600">编辑</button>
+        {w.状态 === '待生产' && (
+          <button onClick={(e) => { e.stopPropagation(); handleStatusChange(w, '生产中'); }} className="px-2 py-0.5 text-xs border border-yellow-300 rounded text-yellow-700 hover:bg-yellow-50">开始</button>
+        )}
+        {w.状态 === '生产中' && (
+          <button onClick={(e) => { e.stopPropagation(); handleStatusChange(w, '已完成'); }} className="px-2 py-0.5 text-xs border border-green-300 rounded text-green-700 hover:bg-green-50">完成</button>
+        )}
+        {w.状态 === '已完成' && (
+          <button onClick={(e) => { e.stopPropagation(); handleStatusChange(w, '已入库'); }} className="px-2 py-0.5 text-xs border border-blue-300 rounded text-blue-700 hover:bg-blue-50">入库</button>
+        )}
+        <button onClick={(e) => { e.stopPropagation(); setEditingItem(w); setModalOpen(true); }} className="px-2 py-0.5 text-xs border rounded hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600">详情</button>
         <button onClick={(e) => { e.stopPropagation(); handleDelete(w.id); }} className="px-2 py-0.5 text-xs border rounded hover:bg-red-50 hover:border-red-300 hover:text-red-600">删除</button>
       </div>
     )},
   ];
+
+  const handleStatusChange = async (w: WorkOrder, newStatus: WorkOrder['状态']) => {
+    await WorkOrderRepo.update(w.id, { 状态: newStatus });
+    if (newStatus === '已完成') {
+      await WorkOrderRepo.update(w.id, { 实际完成日期: new Date().toISOString().slice(0, 10) });
+    }
+    await loadData();
+  };
 
   const statusTabs = [
     { label: '全部', active: !statusFilter, onClick: () => setStatusFilter('') },
@@ -312,6 +351,7 @@ export default function WorkOrdersPage() {
         searchPlaceholder="搜索 单号 / 产品 / 物料编码 / 执行单位..."
         onSearch={setSearch}
         actions={[
+          { label: '从销售订单生成', icon: '📋', variant: 'default' as const, onClick: () => setGenerateModalOpen(true) },
           { label: '新建施工单', icon: '＋', variant: 'primary' as const, onClick: () => { setEditingItem(undefined); setModalOpen(true); } },
         ]}
         tabs={statusTabs}
@@ -322,8 +362,44 @@ export default function WorkOrdersPage() {
           data={filtered}
           loading={loading}
           emptyMessage="暂无施工单"
-          onRowClick={() => {}}
+          expandedId={expandedId}
+          onRowClick={w => setExpandedId(expandedId === w.id ? null : w.id)}
           renderOrderNumber={w => <span className="text-blue-600 font-mono text-xs hover:underline">{w.单号}</span>}
+          renderExpanded={(w) => {
+            const procs = w.工序列表 || [];
+            const completedProcs = procs.filter(p => p.状态 === '已完成').length;
+            return (
+              <div className="p-4 bg-gray-50 border-t">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="text-xs font-medium text-gray-600">工序列表 ({completedProcs}/{procs.length} 完成)</div>
+                  <ProgressBar value={completedProcs} max={procs.length} />
+                </div>
+                {procs.length === 0 ? (
+                  <div className="text-xs text-gray-400 text-center py-3">暂无工序</div>
+                ) : (
+                  <div className="space-y-1">
+                    {procs.map((p, idx) => (
+                      <div key={idx} className="flex items-center gap-3 bg-white rounded p-2 text-xs border">
+                        <span className="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-xs font-medium">{idx + 1}</span>
+                        <span className="flex-1 font-medium text-gray-700">{p.工序名称}</span>
+                        <span className="text-gray-400">{p.执行单位}</span>
+                        <span className="text-gray-400">{p.计划数量}{w.单位 || '件'}</span>
+                        <span className="text-gray-400">{p.已完成数量}{w.单位 || '件'}</span>
+                        <ProcessStatusTag status={p.状态} />
+                        {p.报工时间 && <span className="text-gray-400">{p.报工时间}</span>}
+                        {p.报工人 && <span className="text-gray-400">{p.报工人}</span>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {w.备注 && (
+                  <div className="mt-2 p-2 bg-yellow-50 rounded text-xs text-yellow-700">
+                    备注：{w.备注}
+                  </div>
+                )}
+              </div>
+            );
+          }}
         />
       </div>
 
@@ -336,6 +412,133 @@ export default function WorkOrdersPage() {
         products={products}
         processes={processes}
       />
+
+      {/* 从销售订单生成施工单 */}
+      <GenerateWorkOrderModal
+        open={generateModalOpen}
+        onClose={() => setGenerateModalOpen(false)}
+        salesOrders={salesOrders}
+        products={products}
+        onGenerated={async (wo) => {
+          await WorkOrderRepo.create(wo);
+          await loadData();
+          setGenerateModalOpen(false);
+        }}
+      />
+    </div>
+  );
+}
+
+// 从销售订单生成施工单的Modal
+function GenerateWorkOrderModal({ open, onClose, salesOrders, products, onGenerated }: {
+  open: boolean;
+  onClose: () => void;
+  salesOrders: SalesOrder[];
+  products: Product[];
+  onGenerated: (wo: Omit<WorkOrder, 'id'>) => void;
+}) {
+  const [selectedSoId, setSelectedSoId] = useState('');
+  const [selectedProductId, setSelectedProductId] = useState('');
+  const [form, setForm] = useState({ 执行单位: '', 计划开始日期: '', 计划完成日期: '', 备注: '' });
+
+  useEffect(() => {
+    if (open) { setSelectedSoId(''); setSelectedProductId(''); setForm({ 执行单位: '', 计划开始日期: '', 计划完成日期: '', 备注: '' }); }
+  }, [open]);
+
+  const selectedSo = salesOrders.find(s => s.id === selectedSoId);
+  const selectedProduct = products.find(p => p.id === selectedProductId);
+
+  const handleGenerate = () => {
+    if (!selectedSo || !selectedProduct) { alert('请选择销售订单和产品'); return; }
+    const wo: Omit<WorkOrder, 'id'> = {
+      单号: generateWorkOrderNo(),
+      关联销售订单id: selectedSo.id,
+      关联销售订单号: selectedSo.单号,
+      产品名称: selectedProduct.name,
+      物料编码: selectedProduct.code,
+      规格: selectedProduct.spec || '',
+      单位: selectedProduct.unit || '',
+      计划数量: 0,
+      已完成数量: 0,
+      生产单位: 'external',
+      执行单位: form.执行单位,
+      工序列表: [],
+      状态: '待生产',
+      计划开始日期: form.计划开始日期,
+      计划完成日期: form.计划完成日期,
+      实际开始日期: '',
+      实际完成日期: '',
+      备注: form.备注,
+      制单人: '李紫璘',
+      创建时间: new Date().toISOString(),
+    };
+    onGenerated(wo);
+  };
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+        <div className="px-5 py-3 border-b flex items-center justify-between">
+          <h2 className="text-base font-semibold">从销售订单生成施工单</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
+        </div>
+        <div className="p-5 space-y-3">
+          <div>
+            <label className="block text-xs text-gray-500 mb-0.5">选择销售订单 <span className="text-red-500">*</span></label>
+            <select value={selectedSoId} onChange={e => { setSelectedSoId(e.target.value); setSelectedProductId(''); }}
+              className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm bg-white focus:border-blue-500 outline-none">
+              <option value="">请选择销售订单</option>
+              {salesOrders.filter(s => s.送货状态 !== '全部送货').map(s => (
+                <option key={s.id} value={s.id}>{s.单号} - {s.客户名称}</option>
+              ))}
+            </select>
+          </div>
+          {selectedSo && (
+            <div className="p-2 bg-gray-50 rounded text-xs text-gray-600">
+              <div>客户：{selectedSo.客户名称}</div>
+              <div>日期：{selectedSo.日期}</div>
+              <div>合同金额：¥{selectedSo.合同金额?.toLocaleString()}</div>
+            </div>
+          )}
+          <div>
+            <label className="block text-xs text-gray-500 mb-0.5">选择产品 <span className="text-red-500">*</span></label>
+            <select value={selectedProductId} onChange={e => setSelectedProductId(e.target.value)}
+              className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm bg-white focus:border-blue-500 outline-none">
+              <option value="">请选择产品</option>
+              {products.map(p => <option key={p.id} value={p.id}>{p.name} ({p.code})</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-0.5">执行单位</label>
+            <input type="text" value={form.执行单位} onChange={e => setForm(f => ({ ...f, 执行单位: e.target.value }))}
+              className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 outline-none" placeholder="如：外发-华新印刷" />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-xs text-gray-500 mb-0.5">计划开始日期</label>
+              <input type="date" value={form.计划开始日期} onChange={e => setForm(f => ({ ...f, 计划开始日期: e.target.value }))}
+                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 outline-none" />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-0.5">计划完成日期</label>
+              <input type="date" value={form.计划完成日期} onChange={e => setForm(f => ({ ...f, 计划完成日期: e.target.value }))}
+                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 outline-none" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-0.5">备注</label>
+            <input type="text" value={form.备注} onChange={e => setForm(f => ({ ...f, 备注: e.target.value }))}
+              className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 outline-none" placeholder="备注信息" />
+          </div>
+        </div>
+        <div className="px-5 py-3 border-t flex justify-end gap-2 bg-gray-50">
+          <button onClick={onClose} className="px-4 py-1.5 text-sm border rounded hover:bg-gray-100">取消</button>
+          <button onClick={handleGenerate} disabled={!selectedSoId || !selectedProductId}
+            className="px-4 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50">生成施工单</button>
+        </div>
+      </div>
     </div>
   );
 }
