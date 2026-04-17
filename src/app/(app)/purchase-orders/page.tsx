@@ -6,8 +6,8 @@ import OrderTable, { Column } from '@/components/OrderTable';
 import StatusBadge, { MoneyCell, DateCell } from '@/components/StatusBadge';
 import PurchasePrintTemplate from '@/components/PurchasePrintTemplate';
 import CsvImportModal from '@/components/CsvImportModal';
-import { PurchaseOrder, PurchaseOrderItem, Product } from '@/lib/types';
-import { PurchaseOrderRepo, PurchaseOrderItemRepo, ProductRepo, WarehouseRepo, ReceivingOrderRepo, ReceivingOrderItemRepo } from '@/lib/repo';
+import { PurchaseOrder, PurchaseOrderItem, Product, ReceivingOrder, PaymentMade, PurchaseInvoice } from '@/lib/types';
+import { PurchaseOrderRepo, PurchaseOrderItemRepo, ProductRepo, WarehouseRepo, ReceivingOrderRepo, ReceivingOrderItemRepo, PaymentMadeRepo, PurchaseInvoiceRepo } from '@/lib/repo';
 
 const columns: Column<PurchaseOrder>[] = [
   { key: '单号', label: '单号', sortable: true },
@@ -305,9 +305,34 @@ export default function PurchaseOrdersPage() {
   const [receivingModalOpen, setReceivingModalOpen] = useState(false);
   const [receivingSourceOrder, setReceivingSourceOrder] = useState<PurchaseOrder | null>(null);
   const [receivingForm, setReceivingForm] = useState({ 收货仓库: '', 收货人: '', 联系电话: '', 车牌号: '', 备注: '' });
+  const [allReceivingOrders, setAllReceivingOrders] = useState<ReceivingOrder[]>([]);
+  const [allPaymentMades, setAllPaymentMades] = useState<PaymentMade[]>([]);
+  const [allPurchaseInvoices, setAllPurchaseInvoices] = useState<PurchaseInvoice[]>([]);
+  const [detailTab, setDetailTab] = useState<'basic' | 'receiving' | 'payment' | 'invoice'>('basic');
 
   const loadData = async () => { setLoading(true); try { setData(await PurchaseOrderRepo.findAll()); } finally { setLoading(false); } };
   useEffect(() => { loadData(); WarehouseRepo.findAll().then(ws => setWarehouses(ws.map(w => ({ id: w.id, name: w.name })))); }, []);
+
+  // 加载关联数据（当选中订单时）
+  useEffect(() => {
+    if (!selectedId) return;
+    Promise.all([
+      ReceivingOrderRepo.findAll(),
+      PaymentMadeRepo.findAll(),
+      PurchaseInvoiceRepo.findAll(),
+    ]).then(([ros, pms, pis]) => {
+      setAllReceivingOrders(ros);
+      setAllPaymentMades(pms);
+      setAllPurchaseInvoices(pis);
+    });
+  }, [selectedId]);
+
+  // 选中订单的关联数据
+  const selectedOrder = data.find(d => d.id === selectedId);
+  const orderItems = selectedId ? (orderItemsMap[selectedId] || []) : [];
+  const linkedReceivings = allReceivingOrders.filter(r => r.采购订单id === selectedId);
+  const linkedPayments = allPaymentMades.filter(p => selectedId && p.关联采购订单ids.includes(selectedId));
+  const linkedInvoices = allPurchaseInvoices.filter(i => selectedId && i.关联采购订单ids.includes(selectedId));
 
   const loadOrderItems = async (purchaseOrderId: string) => {
     if (!orderItemsMap[purchaseOrderId]) {
@@ -537,51 +562,158 @@ export default function PurchaseOrdersPage() {
       </div>
       <FormModal open={modalOpen} onClose={() => { setModalOpen(false); setEditingItem(undefined); setEditingItems([]); }} onSave={handleSave} initial={editingItem} initialItems={editingItems} />
 
-      {selectedId && (() => {
-        const item = data.find(d => d.id === selectedId);
-        if (!item) return null;
-        return (
-          <div className="w-80 border-l bg-white flex flex-col flex-shrink-0">
-            <div className="px-4 py-3 border-b flex items-center justify-between">
-              <h3 className="font-semibold text-sm">订单详情</h3>
-              <button onClick={() => setSelectedId(null)} className="text-gray-400 hover:text-gray-600">✕</button>
-            </div>
-            <div className="flex-1 overflow-auto p-4 space-y-3">
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="text-gray-500">单号</div>
-                <div className="text-blue-600 font-mono">{item.单号}</div>
-                <div className="text-gray-500">供应商</div>
-                <div className="font-medium">{item.供应商名称}</div>
-                <div className="text-gray-500">日期</div>
-                <div><DateCell value={item.日期} /></div>
-                <div className="text-gray-500">制单人</div>
-                <div>{item.制单人 || '-'}</div>
-                <div className="text-gray-500">业务员</div>
-                <div>{item.业务员 || '-'}</div>
-                <div className="text-gray-500">付款状态</div>
-                <div><StatusBadge status={item.付款状态} /></div>
-                <div className="text-gray-500">收货状态</div>
-                <div><StatusBadge status={item.收货状态} /></div>
-                <div className="text-gray-500">计划付款</div>
-                <div><DateCell value={item.计划付款日期} /></div>
-              </div>
-              <div className="border-t pt-3 space-y-2">
-                <div className="flex justify-between text-xs"><span className="text-gray-500">合同金额</span><MoneyCell value={item.合同金额} /></div>
-                <div className="flex justify-between text-xs"><span className="text-gray-500">已收货</span><MoneyCell value={item.已收货} /></div>
-                <div className="flex justify-between text-xs"><span className="text-gray-500">已付款</span><MoneyCell value={item.已付款} /></div>
-                <div className="flex justify-between text-xs"><span className="text-gray-500">未付款</span><MoneyCell value={item.未付款} className={item.未付款 > 0 ? 'text-red-600 font-semibold' : ''} /></div>
-              </div>
-              {item.收货地址 && <div className="border-t pt-3"><div className="text-xs text-gray-500 mb-1">收货地址</div><div className="text-xs text-gray-700">{item.收货地址}</div></div>}
-              {item.备注 && <div className="border-t pt-3"><div className="text-xs text-gray-500 mb-1">备注</div><div className="text-xs text-gray-700">{item.备注}</div></div>}
-            </div>
-            <div className="p-3 border-t flex gap-2">
-              <button onClick={() => handleEdit(item)} className="flex-1 px-3 py-1.5 text-sm border rounded hover:bg-gray-50">编辑</button>
-              <button onClick={() => setPrintOrder(item)} className="flex-1 px-3 py-1.5 text-sm border rounded hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200">打印</button>
-              <button onClick={() => handleDelete(item.id)} className="flex-1 px-3 py-1.5 text-sm border rounded hover:bg-red-50 hover:text-red-600 hover:border-red-200">删除</button>
-            </div>
+      {selectedId && selectedOrder && (
+        <div className="w-96 border-l bg-white flex flex-col flex-shrink-0">
+          <div className="px-4 py-3 border-b flex items-center justify-between">
+            <h3 className="font-semibold text-sm">订单详情</h3>
+            <button onClick={() => setSelectedId(null)} className="text-gray-400 hover:text-gray-600">✕</button>
           </div>
-        );
-      })()}
+          {/* 基本信息 */}
+          <div className="px-4 py-3 border-b grid grid-cols-2 gap-2 text-xs bg-gray-50">
+            <div className="text-gray-500">单号</div>
+            <div className="text-blue-600 font-mono">{selectedOrder.单号}</div>
+            <div className="text-gray-500">供应商</div>
+            <div className="font-medium">{selectedOrder.供应商名称}</div>
+            <div className="text-gray-500">日期</div>
+            <div><DateCell value={selectedOrder.日期} /></div>
+            <div className="text-gray-500">付款状态</div>
+            <div><StatusBadge status={selectedOrder.付款状态} /></div>
+            <div className="text-gray-500">收货状态</div>
+            <div><StatusBadge status={selectedOrder.收货状态} /></div>
+            <div className="text-gray-500">合同金额</div>
+            <MoneyCell value={selectedOrder.合同金额} />
+            <div className="text-gray-500">已付款</div>
+            <MoneyCell value={selectedOrder.已付款} />
+            <div className="text-gray-500">未付款</div>
+            <MoneyCell value={selectedOrder.未付款} className={selectedOrder.未付款 > 0 ? 'text-red-600 font-semibold' : ''} />
+          </div>
+          {/* Tab切换 */}
+          <div className="flex border-b bg-gray-50">
+            {[
+              { key: 'basic', label: '明细' },
+              { key: 'receiving', label: `收货单${linkedReceivings.length > 0 ? `(${linkedReceivings.length})` : ''}` },
+              { key: 'payment', label: `付款${linkedPayments.length > 0 ? `(${linkedPayments.length})` : ''}` },
+              { key: 'invoice', label: `发票${linkedInvoices.length > 0 ? `(${linkedInvoices.length})` : ''}` },
+            ].map(tab => (
+              <button key={tab.key} onClick={() => setDetailTab(tab.key as typeof detailTab)}
+                className={`flex-1 px-2 py-2 text-xs font-medium border-b-2 transition-colors ${detailTab === tab.key ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+                {tab.label}
+              </button>
+            ))}
+          </div>
+          {/* Tab内容 */}
+          <div className="flex-1 overflow-auto p-3">
+            {detailTab === 'basic' && (
+              <div className="space-y-3">
+                <div className="text-xs font-medium text-gray-600">订单明细 ({orderItems.length}项)</div>
+                {orderItems.length === 0 ? (
+                  <div className="text-xs text-gray-400 text-center py-4">暂无明细</div>
+                ) : (
+                  <div className="space-y-1">
+                    {orderItems.map((row, idx) => (
+                      <div key={row.id || idx} className="bg-gray-50 rounded p-2 text-xs">
+                        <div className="flex justify-between font-medium">
+                          <span className="text-blue-600">{row.产品名称}</span>
+                          <span className="text-gray-500">×{row.数量}{row.单位}</span>
+                        </div>
+                        <div className="flex justify-between mt-1 text-gray-400">
+                          <span>单价 ¥{row.单价.toFixed(2)}</span>
+                          <span className="text-blue-600">¥{row.金额.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {selectedOrder.收货地址 && (
+                  <div className="p-2 bg-gray-50 rounded text-xs">
+                    <div className="text-gray-500 mb-1">收货地址</div>
+                    {selectedOrder.收货地址}
+                  </div>
+                )}
+                {selectedOrder.备注 && (
+                  <div className="p-2 bg-yellow-50 rounded text-xs text-yellow-700">
+                    <div className="font-medium mb-1">备注</div>
+                    {selectedOrder.备注}
+                  </div>
+                )}
+              </div>
+            )}
+            {detailTab === 'receiving' && (
+              <div className="space-y-2">
+                {linkedReceivings.length === 0 ? (
+                  <div className="text-xs text-gray-400 text-center py-4">暂无收货单</div>
+                ) : (
+                  linkedReceivings.map(r => (
+                    <div key={r.id} className="border rounded p-2 text-xs">
+                      <div className="flex justify-between font-medium mb-1">
+                        <span className="text-blue-600 font-mono">{r.单号}</span>
+                        <span className={`px-1.5 py-0.5 rounded text-xs ${r.状态 === '已完成' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{r.状态}</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-1 text-gray-500">
+                        <div>收货仓库：{r.收货仓库}</div>
+                        <div>日期：{r.收货日期}</div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+            {detailTab === 'payment' && (
+              <div className="space-y-2">
+                {linkedPayments.length === 0 ? (
+                  <div className="text-xs text-gray-400 text-center py-4">暂无付款记录</div>
+                ) : (
+                  linkedPayments.map(p => (
+                    <div key={p.id} className="border rounded p-2 text-xs">
+                      <div className="flex justify-between font-medium mb-1">
+                        <span className="text-blue-600 font-mono">{p.单号}</span>
+                        <span className="text-red-600 font-semibold">-¥{p.付款金额.toLocaleString()}</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-1 text-gray-500">
+                        <div>日期：{p.付款日期}</div>
+                        <div>方式：{p.付款方式}</div>
+                        <div>状态：{p.状态}</div>
+                        <div>制单：{p.制单人}</div>
+                      </div>
+                      {p.备注 && <div className="mt-1 text-gray-400">备注：{p.备注}</div>}
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+            {detailTab === 'invoice' && (
+              <div className="space-y-2">
+                {linkedInvoices.length === 0 ? (
+                  <div className="text-xs text-gray-400 text-center py-4">暂无发票</div>
+                ) : (
+                  linkedInvoices.map(inv => (
+                    <div key={inv.id} className="border rounded p-2 text-xs">
+                      <div className="flex justify-between font-medium mb-1">
+                        <span className="text-blue-600 font-mono">{inv.单号}</span>
+                        <span className="text-orange-600 font-semibold">¥{inv.金额.toLocaleString()}</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-1 text-gray-500">
+                        <div>发票号：{inv.发票号}</div>
+                        <div>税率：{(inv.税率 * 100).toFixed(0)}%</div>
+                        <div>税额：¥{inv.税额.toLocaleString()}</div>
+                        <div>状态：{inv.状态}</div>
+                        <div>开票日期：{inv.开票日期}</div>
+                        <div>制单：{inv.制单人}</div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+          {/* 底部操作栏 */}
+          <div className="p-3 border-t flex gap-2">
+            <button onClick={() => handleEdit(selectedOrder)} className="flex-1 px-3 py-1.5 text-sm border rounded hover:bg-gray-50">编辑</button>
+            <button onClick={() => setPrintOrder(selectedOrder)} className="flex-1 px-3 py-1.5 text-sm border rounded hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200">打印</button>
+            <button onClick={() => handleDelete(selectedOrder.id)} className="flex-1 px-3 py-1.5 text-sm border rounded hover:bg-red-50 hover:text-red-600 hover:border-red-200">删除</button>
+          </div>
+        </div>
+      )}
 
       {printOrder && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setPrintOrder(null)}>
