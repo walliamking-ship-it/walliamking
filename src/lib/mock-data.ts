@@ -107,30 +107,30 @@ export const mockProducts: Product[] = [
 
 // 工艺模拟数据
 export const mockProcesses: Process[] = [
-  { id: '1', name: '烫金', unitPrice: 0.15, outsource: true, remark: '金色' },
-  { id: '2', name: '烫银', unitPrice: 0.15, outsource: true, remark: '银色' },
-  { id: '3', name: 'UV', unitPrice: 0.10, outsource: true, remark: '局部UV' },
-  { id: '4', name: '覆膜', unitPrice: 0.08, outsource: false, remark: '亮膜/哑膜' },
-  { id: '5', name: '压纹', unitPrice: 0.12, outsource: true, remark: '' },
-  { id: '6', name: '模切', unitPrice: 0.05, outsource: false, remark: '' },
-  { id: '7', name: '糊盒', unitPrice: 0.20, outsource: true, remark: '' },
-  { id: '8', name: '打码', unitPrice: 0.02, outsource: false, remark: '' },
+  { id: '1', name: '烫金', category: '表面处理', unitPrice: 0.15, unit: '件', outsource: true, hasDie: true, remark: '金色' },
+  { id: '2', name: '烫银', category: '表面处理', unitPrice: 0.15, unit: '件', outsource: true, hasDie: true, remark: '银色' },
+  { id: '3', name: '局部UV', category: '表面处理', unitPrice: 0.10, unit: '件', outsource: true, remark: '局部UV' },
+  { id: '4', name: '覆膜', category: '表面处理', unitPrice: 0.08, unit: '件', outsource: false, remark: '亮膜/哑膜' },
+  { id: '5', name: '压纹', category: '表面处理', unitPrice: 0.12, unit: '件', outsource: true, remark: '' },
+  { id: '6', name: '模切', category: '成型', unitPrice: 0.05, unit: '件', outsource: false, hasDie: true, remark: '' },
+  { id: '7', name: '糊盒', category: '印后加工', unitPrice: 0.20, unit: '件', outsource: true, remark: '' },
+  { id: '8', name: '打码', category: '印刷', unitPrice: 0.02, unit: '件', outsource: false, remark: '' },
 ];
 
 // 工序模拟数据
 export const mockWorkstations: Workstation[] = [
-  { id: '1', name: '制稿', sequence: 1, outsource: false, remark: '设计输出' },
-  { id: '2', name: '买纸', sequence: 2, outsource: false, remark: '采购纸张' },
-  { id: '3', name: '裁切', sequence: 3, outsource: false, remark: '' },
-  { id: '4', name: '印刷', sequence: 4, outsource: false, remark: '' },
-  { id: '5', name: '覆膜', sequence: 5, outsource: false, remark: '' },
-  { id: '6', name: '烫金', sequence: 6, outsource: true, remark: '可委外' },
-  { id: '7', name: 'UV', sequence: 7, outsource: true, remark: '可委外' },
-  { id: '8', name: '糊盒', sequence: 8, outsource: true, remark: '可委外' },
-  { id: '9', name: '模切', sequence: 9, outsource: false, remark: '' },
-  { id: '10', name: '清废', sequence: 10, outsource: false, remark: '' },
-  { id: '11', name: '包装', sequence: 11, outsource: false, remark: '' },
-  { id: '12', name: '出货', sequence: 12, outsource: false, remark: '' },
+  { id: '1', name: '制稿', sequence: 1, outsource: false, unitPrice: 0.10, unit: '件', remark: '设计输出' },
+  { id: '2', name: '买纸', sequence: 2, outsource: false, unitPrice: 0.05, unit: '件', remark: '采购纸张' },
+  { id: '3', name: '裁切', sequence: 3, outsource: false, unitPrice: 0.08, unit: '件', remark: '' },
+  { id: '4', name: '印刷', sequence: 4, outsource: false, unitPrice: 0.15, unit: '色令/件', remark: '' },
+  { id: '5', name: '覆膜', sequence: 5, outsource: false, unitPrice: 0.12, unit: '件', remark: '' },
+  { id: '6', name: '烫金', sequence: 6, outsource: true, unitPrice: 0.20, unit: '件', remark: '可委外' },
+  { id: '7', name: 'UV', sequence: 7, outsource: true, unitPrice: 0.18, unit: '件', remark: '可委外' },
+  { id: '8', name: '糊盒', sequence: 8, outsource: true, unitPrice: 0.25, unit: '件', remark: '可委外' },
+  { id: '9', name: '模切', sequence: 9, outsource: false, unitPrice: 0.10, unit: '件', remark: '' },
+  { id: '10', name: '清废', sequence: 10, outsource: false, unitPrice: 0.05, unit: '件', remark: '' },
+  { id: '11', name: '包装', sequence: 11, outsource: false, unitPrice: 0.08, unit: '件', remark: '' },
+  { id: '12', name: '出货', sequence: 12, outsource: false, unitPrice: 0.06, unit: '件', remark: '' },
 ];
 
 // 销售订单模拟数据

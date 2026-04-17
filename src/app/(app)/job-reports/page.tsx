@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react';
 import PageHeader from '@/components/PageHeader';
 import OrderTable, { Column } from '@/components/OrderTable';
-import { JobReport, WorkOrder } from '@/lib/types';
-import { JobReportRepo, WorkOrderRepo } from '@/lib/repo';
+import StatusBadge, { MoneyCell } from '@/components/StatusBadge';
+import { JobReport, WorkOrder, Workstation } from '@/lib/types';
+import { JobReportRepo, WorkOrderRepo, WorkstationRepo } from '@/lib/repo';
 
 function generateReportNo(): string {
   const today = new Date();
@@ -13,20 +14,30 @@ function generateReportNo(): string {
   return `BG${dateStr}${seq}`;
 }
 
-function JobReportFormModal({ open, onClose, onSave, workOrders }: {
+// 工资汇总行
+interface WageSummaryRow {
+  id: string;
+  worker: string;
+  totalQuantity: number;
+  totalWage: number;
+  reportCount: number;
+}
+
+function JobReportFormModal({ open, onClose, onSave, workOrders, workstations }: {
   open: boolean; onClose: () => void;
   onSave: (item: Omit<JobReport, 'id'>) => void;
   workOrders: WorkOrder[];
+  workstations: Workstation[];
 }) {
   const [form, setForm] = useState({
     单号: '', 工单id: '', 工单号: '', 工序序号: 0, 工序名称: '',
-    执行单位: '', 报工数量: 0, 报工日期: '', 报工人: '李紫璘',
+    执行单位: '', 工序单价: 0, 报工数量: 0, 报工日期: '', 报工人: '李紫璘',
     合格率: 100, 不良数量: 0, 备注: '', 创建时间: new Date().toISOString(),
   });
 
   useEffect(() => {
     if (open) {
-      setForm({ 单号: generateReportNo(), 工单id: '', 工单号: '', 工序序号: 0, 工序名称: '', 执行单位: '', 报工数量: 0, 报工日期: new Date().toISOString().slice(0,10), 报工人: '李紫璘', 合格率: 100, 不良数量: 0, 备注: '', 创建时间: new Date().toISOString() });
+      setForm({ 单号: generateReportNo(), 工单id: '', 工单号: '', 工序序号: 0, 工序名称: '', 执行单位: '', 工序单价: 0, 报工数量: 0, 报工日期: new Date().toISOString().slice(0,10), 报工人: '李紫璘', 合格率: 100, 不良数量: 0, 备注: '', 创建时间: new Date().toISOString() });
     }
   }, [open]);
 
@@ -43,7 +54,10 @@ function JobReportFormModal({ open, onClose, onSave, workOrders }: {
     if (!wo) return;
     const proc = wo.工序列表.find(p => p.序号 === seq);
     if (!proc) return;
-    setForm(f => ({ ...f, 工序序号: seq, 工序名称: proc.工序名称 }));
+    // 尝试从工序表获取单价
+    const ws = workstations.find(w => w.name === proc.工序名称);
+    const unitPrice = ws?.unitPrice || 0;
+    setForm(f => ({ ...f, 工序序号: seq, 工序名称: proc.工序名称, 工序单价: unitPrice }));
   };
 
   if (!open) return null;
@@ -54,6 +68,7 @@ function JobReportFormModal({ open, onClose, onSave, workOrders }: {
   const handleSave = () => {
     if (!form.工单id || !form.工序名称) { alert('请选择工单和工序'); return; }
     if (form.报工数量 <= 0) { alert('报工数量必须大于0'); return; }
+    if (form.工序单价 <= 0) { alert('请设置工序单价'); return; }
     onSave(form as Omit<JobReport, 'id'>);
     onClose();
   };
@@ -100,9 +115,19 @@ function JobReportFormModal({ open, onClose, onSave, workOrders }: {
               <input type="text" value={form.执行单位} readOnly className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm bg-gray-100" />
             </div>
             <div>
+              <label className="block text-xs text-gray-500 mb-0.5">工序单价 (元/件)</label>
+              <input type="number" step="0.01" min={0} value={form.工序单价 || ''} onChange={e => updateField('工序单价', parseFloat(e.target.value) || 0)}
+                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" placeholder="0.00" />
+            </div>
+            <div>
               <label className="block text-xs text-gray-500 mb-0.5">报工数量 <span className="text-red-500">*</span></label>
               <input type="number" step="1" value={form.报工数量 || ''} onChange={e => updateField('报工数量', parseInt(e.target.value) || 0)}
                 className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-0.5">预估工资</label>
+              <input type="text" value={`¥${((form.报工数量 || 0) * (form.工序单价 || 0)).toFixed(2)}`} readOnly
+                className="w-full border border-gray-200 rounded px-2 py-1.5 text-sm bg-gray-50 text-green-700 font-medium" />
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-0.5">报工日期</label>
@@ -140,22 +165,52 @@ function JobReportFormModal({ open, onClose, onSave, workOrders }: {
   );
 }
 
+type ViewTab = 'reports' | 'wages';
+
 export default function JobReportsPage() {
   const [data, setData] = useState<JobReport[]>([]);
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
+  const [workstations, setWorkstations] = useState<Workstation[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
+  const [viewTab, setViewTab] = useState<ViewTab>('reports');
+  // 工资汇总相关
+  const [wageStart, setWageStart] = useState(() => {
+    const d = new Date(); d.setDate(1); return d.toISOString().slice(0, 10);
+  });
+  const [wageEnd, setWageEnd] = useState(() => new Date().toISOString().slice(0, 10));
+  const [wageSummary, setWageSummary] = useState<Record<string, WageSummaryRow>>({});
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const [reports, orders] = await Promise.all([JobReportRepo.findAll(), WorkOrderRepo.findAll()]);
+      const [reports, orders, ws] = await Promise.all([
+        JobReportRepo.findAll(), WorkOrderRepo.findAll(), WorkstationRepo.findAll()
+      ]);
       setData(reports);
       setWorkOrders(orders);
+      setWorkstations(ws);
     } finally { setLoading(false); }
   };
   useEffect(() => { loadData(); }, []);
+
+  // 加载工资汇总
+  const loadWageSummary = async () => {
+    const summary = await JobReportRepo.getWageSummary(wageStart, wageEnd);
+    const rows: Record<string, WageSummaryRow> = {};
+    for (const [worker, info] of Object.entries(summary)) {
+      rows[worker] = {
+        id: worker,
+        worker,
+        totalQuantity: info.totalQuantity,
+        totalWage: info.totalWage,
+        reportCount: info.reports.length,
+      };
+    }
+    setWageSummary(rows);
+  };
+  useEffect(() => { if (viewTab === 'wages') loadWageSummary(); }, [viewTab, wageStart, wageEnd, data]);
 
   const filtered = data.filter(r => {
     const q = search.toLowerCase();
@@ -184,48 +239,110 @@ export default function JobReportsPage() {
     await loadData();
   };
 
+  const handleConfirm = async (id: string) => {
+    await JobReportRepo.update(id, { 状态: '已确认' });
+    await loadData();
+  };
+
   const handleDelete = async (id: string) => {
     if (!confirm('确定删除该报工记录？')) return;
     await JobReportRepo.delete(id);
     await loadData();
   };
 
+  const wageColumns: Column<WageSummaryRow>[] = [
+    { key: 'worker', label: '工人', sortable: true },
+    { key: 'reportCount', label: '报工次数', sortable: true },
+    { key: 'totalQuantity', label: '总数量', sortable: true, render: (row: WageSummaryRow) => <span className="font-mono">{row.totalQuantity.toLocaleString()}</span> },
+    { key: 'totalWage', label: '计件工资合计', sortable: true, render: (row: WageSummaryRow) => <MoneyCell value={row.totalWage} className="text-green-700 font-semibold" /> },
+  ];
+
   const columns: Column<JobReport>[] = [
     { key: '单号', label: '报工单号', sortable: true },
     { key: '工单号', label: '工单号', sortable: true },
-    { key: '工序序号', label: '工序' },
-    { key: '工序名称', label: '工序名称', sortable: true },
+    { key: '工序名称', label: '工序', sortable: true },
     { key: '执行单位', label: '执行单位' },
-    { key: '报工数量', label: '报工数量', sortable: true },
-    { key: '报工日期', label: '报工日期', sortable: true },
+    { key: '报工数量', label: '报工数量', sortable: true, render: (r: JobReport) => <span className="font-mono">{r.报工数量.toLocaleString()}</span> },
+    { key: '工序单价', label: '单价', render: (r: JobReport) => <MoneyCell value={r.工序单价} /> },
+    { key: '计件工资', label: '工资', sortable: true, render: (r: JobReport) => <MoneyCell value={r.计件工资} className="text-green-700 font-semibold" /> },
+    { key: '报工日期', label: '日期', sortable: true },
     { key: '报工人', label: '报工人', sortable: true },
-    { key: '合格率', label: '合格率' },
-    { key: '不良数量', label: '不良数量' },
-    { key: '备注', label: '备注' },
+    { key: '状态', label: '状态', render: (r: JobReport) => <StatusBadge status={r.状态} /> },
     { key: 'actions', label: '操作', render: (r: JobReport) => (
-      <button onClick={(e) => { e.stopPropagation(); handleDelete(r.id); }} className="px-2 py-0.5 text-xs border rounded hover:bg-red-50 hover:border-red-300 hover:text-red-600">删除</button>
+      <div className="flex gap-1">
+        {r.状态 === '待审核' && (
+          <button onClick={(e) => { e.stopPropagation(); handleConfirm(r.id); }} className="px-2 py-0.5 text-xs border border-green-300 rounded text-green-700 hover:bg-green-50">确认</button>
+        )}
+        <button onClick={(e) => { e.stopPropagation(); handleDelete(r.id); }} className="px-2 py-0.5 text-xs border border-red-300 rounded text-red-600 hover:bg-red-50">删除</button>
+      </div>
     )},
   ];
+
+  const tabs = [
+    { label: '报工记录', active: viewTab === 'reports', onClick: () => setViewTab('reports') },
+    { label: '工资汇总', active: viewTab === 'wages', onClick: () => setViewTab('wages') },
+  ];
+
+  const summaryRows = Object.values(wageSummary);
+  const totalWage = summaryRows.reduce((s, r) => s + r.totalWage, 0);
+  const totalQty = summaryRows.reduce((s, r) => s + r.totalQuantity, 0);
 
   return (
     <div className="flex flex-col h-full">
       <PageHeader
-        title="报工记录"
-        searchPlaceholder="搜索 单号 / 工单号 / 工序 / 报工人..."
+        title="报工管理"
+        searchPlaceholder="搜索..."
         onSearch={setSearch}
-        actions={[
+        tabs={tabs}
+        actions={viewTab === 'reports' ? [
           { label: '新建报工', icon: '＋', variant: 'primary' as const, onClick: () => setModalOpen(true) },
+        ] : [
+          { label: '刷新汇总', icon: '↻', variant: 'default' as const, onClick: loadWageSummary },
         ]}
       />
+
+      {viewTab === 'wages' && (
+        <div className="px-5 py-3 bg-orange-50 border-b flex items-center gap-4">
+          <span className="text-xs text-gray-600">时间范围：</span>
+          <input type="date" value={wageStart} onChange={e => setWageStart(e.target.value)}
+            className="border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 focus:outline-none" />
+          <span className="text-xs text-gray-400">至</span>
+          <input type="date" value={wageEnd} onChange={e => setWageEnd(e.target.value)}
+            className="border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 focus:outline-none" />
+          <span className="text-xs text-gray-500 ml-4">合计：</span>
+          <span className="text-xs font-semibold text-green-700">¥{totalWage.toFixed(2)}</span>
+          <span className="text-xs text-gray-400 ml-2">总数量：</span>
+          <span className="text-xs font-semibold">{totalQty.toLocaleString()}</span>
+        </div>
+      )}
+
       <div className="flex-1 overflow-auto bg-white">
-        <OrderTable
-          columns={columns}
-          data={filtered}
-          loading={loading}
-          emptyMessage="暂无报工记录"
-          onRowClick={() => {}}
-          renderOrderNumber={r => <span className="text-blue-600 font-mono text-xs hover:underline">{r.单号}</span>}
-        />
+        {viewTab === 'reports' ? (
+          <OrderTable
+            columns={columns}
+            data={filtered}
+            loading={loading}
+            emptyMessage="暂无报工记录"
+            onRowClick={() => {}}
+            renderOrderNumber={r => <span className="text-blue-600 font-mono text-xs hover:underline">{r.单号}</span>}
+          />
+        ) : (
+          <>
+            <OrderTable
+              columns={wageColumns}
+              data={summaryRows}
+              loading={loading}
+              emptyMessage="该时间段无报工记录"
+              onRowClick={() => {}}
+            />
+            {summaryRows.length > 0 && (
+              <div className="px-5 py-3 bg-gray-50 border-t flex justify-end gap-8 text-xs">
+                <span className="text-gray-500">合计</span>
+                <span className="font-semibold text-green-700">¥{totalWage.toFixed(2)}</span>
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       <JobReportFormModal
@@ -233,6 +350,7 @@ export default function JobReportsPage() {
         onClose={() => setModalOpen(false)}
         onSave={handleSave}
         workOrders={workOrders}
+        workstations={workstations}
       />
     </div>
   );

@@ -4,7 +4,7 @@
  */
 
 import { getItem, setItem, STORAGE_KEYS } from './storage';
-import { Customer, Vendor, Material, Product, Process, Workstation, SalesOrder, PurchaseOrder, Inventory, SalesOrderItem, DeliveryOrder, DeliveryOrderItem, PurchaseOrderItem, ReceivingOrder, ReceivingOrderItem, Warehouse, Employee, SalesInvoice, PurchaseInvoice, RoleKey, Bill, PaymentReceipt, PaymentMade, ScrapOrder, WorkOrder, JobReport } from './types';
+import { Customer, Vendor, Material, Product, Process, Workstation, SalesOrder, PurchaseOrder, Inventory, SalesOrderItem, DeliveryOrder, DeliveryOrderItem, PurchaseOrderItem, ReceivingOrder, ReceivingOrderItem, Warehouse, Employee, SalesInvoice, PurchaseInvoice, RoleKey, Bill, PaymentReceipt, PaymentMade, ScrapOrder, WorkOrder, JobReport, CuttingDie, Artwork } from './types';
 
 // ========== 初始数据（来自秒账） ==========
 
@@ -94,29 +94,36 @@ const INITIAL_PRODUCTS: Product[] = [
 ];
 
 const INITIAL_PROCESSES: Process[] = [
-  { id: '1', name: '烫金', unitPrice: 0.15, outsource: true, remark: '金色' },
-  { id: '2', name: '烫银', unitPrice: 0.15, outsource: true, remark: '银色' },
-  { id: '3', name: 'UV', unitPrice: 0.10, outsource: true, remark: '局部UV' },
-  { id: '4', name: '覆膜', unitPrice: 0.08, outsource: false, remark: '亮膜/哑膜' },
-  { id: '5', name: '压纹', unitPrice: 0.12, outsource: true, remark: '' },
-  { id: '6', name: '模切', unitPrice: 0.05, outsource: false, remark: '' },
-  { id: '7', name: '糊盒', unitPrice: 0.20, outsource: true, remark: '' },
-  { id: '8', name: '打码', unitPrice: 0.02, outsource: false, remark: '' },
+  { id: '1', name: '烫金', category: '表面处理', unitPrice: 0.15, unit: '件', outsource: true, hasDie: true, remark: '金色/银色/彩色' },
+  { id: '2', name: '烫银', category: '表面处理', unitPrice: 0.15, unit: '件', outsource: true, hasDie: true, remark: '银色' },
+  { id: '3', name: '局部UV', category: '表面处理', unitPrice: 0.10, unit: '件', outsource: true, remark: '局部UV上光' },
+  { id: '4', name: '覆膜', category: '表面处理', unitPrice: 0.08, unit: '件', outsource: false, remark: '亮膜/哑膜' },
+  { id: '5', name: '压纹', category: '表面处理', unitPrice: 0.12, unit: '件', outsource: true, remark: '压纹纹理' },
+  { id: '6', name: '模切', category: '成型', unitPrice: 0.05, unit: '件', outsource: false, hasDie: true, remark: '压痕/冲孔' },
+  { id: '7', name: '糊盒', category: '印后加工', unitPrice: 0.20, unit: '件', outsource: true, remark: '自动糊盒' },
+  { id: '8', name: '打码', category: '印刷', unitPrice: 0.02, unit: '件', outsource: false, remark: '流水号/日期' },
+  { id: '9', name: '四色印刷', category: '印刷', unitPrice: 0.12, unit: '色令', outsource: false, machineTypes: '四色胶印机', setupTime: 30, cycleTime: 5, remark: 'CMYK标准印刷' },
+  { id: '10', name: '柔印', category: '印刷', unitPrice: 0.08, unit: '件', outsource: false, machineTypes: '柔印机', setupTime: 20, cycleTime: 3, remark: '适合长版订单' },
+  { id: '11', name: '丝印', category: '印刷', unitPrice: 0.10, unit: '件', outsource: false, machineTypes: '丝印机', setupTime: 25, cycleTime: 8, remark: '适合特殊承印物' },
+  { id: '12', name: '压痕', category: '成型', unitPrice: 0.03, unit: '件', outsource: false, hasDie: true, remark: '压痕线' },
+  { id: '13', name: '打孔', category: '成型', unitPrice: 0.02, unit: '件', outsource: false, remark: '' },
+  { id: '14', name: '折页', category: '印后加工', unitPrice: 0.01, unit: '张', outsource: false, remark: '' },
+  { id: '15', name: '装订', category: '印后加工', unitPrice: 0.05, unit: '本', outsource: false, remark: '骑马钉/无线胶装' },
 ];
 
 const INITIAL_WORKSTATIONS: Workstation[] = [
-  { id: '1', name: '制稿', sequence: 1, outsource: false, remark: '设计输出' },
-  { id: '2', name: '买纸', sequence: 2, outsource: false, remark: '采购纸张' },
-  { id: '3', name: '裁切', sequence: 3, outsource: false, remark: '' },
-  { id: '4', name: '印刷', sequence: 4, outsource: false, remark: '' },
-  { id: '5', name: '覆膜', sequence: 5, outsource: false, remark: '' },
-  { id: '6', name: '烫金', sequence: 6, outsource: true, remark: '可委外' },
-  { id: '7', name: 'UV', sequence: 7, outsource: true, remark: '可委外' },
-  { id: '8', name: '糊盒', sequence: 8, outsource: true, remark: '可委外' },
-  { id: '9', name: '模切', sequence: 9, outsource: false, remark: '' },
-  { id: '10', name: '清废', sequence: 10, outsource: false, remark: '' },
-  { id: '11', name: '包装', sequence: 11, outsource: false, remark: '' },
-  { id: '12', name: '出货', sequence: 12, outsource: false, remark: '' },
+  { id: '1', name: '制稿', sequence: 1, outsource: false, unitPrice: 0.10, unit: '件', remark: '设计输出' },
+  { id: '2', name: '买纸', sequence: 2, outsource: false, unitPrice: 0.05, unit: '件', remark: '采购纸张' },
+  { id: '3', name: '裁切', sequence: 3, outsource: false, unitPrice: 0.08, unit: '件', remark: '' },
+  { id: '4', name: '印刷', sequence: 4, outsource: false, unitPrice: 0.15, unit: '色令/件', remark: '按色令计费' },
+  { id: '5', name: '覆膜', sequence: 5, outsource: false, unitPrice: 0.12, unit: '件', remark: '' },
+  { id: '6', name: '烫金', sequence: 6, outsource: true, unitPrice: 0.20, unit: '件', remark: '可委外' },
+  { id: '7', name: 'UV', sequence: 7, outsource: true, unitPrice: 0.18, unit: '件', remark: '可委外' },
+  { id: '8', name: '糊盒', sequence: 8, outsource: true, unitPrice: 0.25, unit: '件', remark: '可委外' },
+  { id: '9', name: '模切', sequence: 9, outsource: false, unitPrice: 0.10, unit: '件', remark: '' },
+  { id: '10', name: '清废', sequence: 10, outsource: false, unitPrice: 0.05, unit: '件', remark: '' },
+  { id: '11', name: '包装', sequence: 11, outsource: false, unitPrice: 0.08, unit: '件', remark: '' },
+  { id: '12', name: '出货', sequence: 12, outsource: false, unitPrice: 0.06, unit: '件', remark: '' },
 ];
 
 const INITIAL_SALES_ORDERS: SalesOrder[] = [
@@ -280,6 +287,28 @@ export function setWorkOrders(data: WorkOrder[]) { setData(STORAGE_KEYS.workOrde
 export function getJobReports(): JobReport[] { return getOrInitialize(STORAGE_KEYS.jobReports, INITIAL_JOB_REPORTS); }
 export function setJobReports(data: JobReport[]) { setData(STORAGE_KEYS.jobReports, data); }
 
+// ========== 刀板 ==========
+const INITIAL_CUTTING_DIES: CuttingDie[] = [
+  { id: '1', code: 'D001', name: '白领仕吊牌刀', productName: 'CAD吊牌', customerCode: 'C05', size: '40x60mm', dieType: '啤刀', status: '在用', location: '刀房A区-01', remark: '', createDate: '2026-01-10' },
+  { id: '2', code: 'D002', name: '天一纺织吊牌刀', productName: 'DB通用吊牌', customerCode: 'C01', size: '35x50mm', dieType: '啤刀', status: '在用', location: '刀房A区-02', remark: '', createDate: '2026-01-15' },
+  { id: '3', code: 'D003', name: 'NEIWAI烫金刀', productName: 'NEIWAI系列吊牌', customerCode: 'C12', size: '45x65mm', dieType: '烫金刀', status: '在用', location: '刀房B区-01', remark: '', createDate: '2026-02-01' },
+  { id: '4', code: 'D004', name: '衣架标签刀', productName: '衣架标签', customerCode: 'C10', size: '25x40mm', dieType: '啤刀', status: '库存', location: '刀房C区-03', remark: '备用刀', createDate: '2026-03-05' },
+];
+
+export function getCuttingDies(): CuttingDie[] { return getOrInitialize(STORAGE_KEYS.cuttingDies, INITIAL_CUTTING_DIES); }
+export function setCuttingDies(data: CuttingDie[]) { setData(STORAGE_KEYS.cuttingDies, data); }
+
+// ========== 稿件 ==========
+const INITIAL_ARTWORKS: Artwork[] = [
+  { id: '1', code: 'A001', name: '白领仕CAD吊牌', productName: 'CAD吊牌', customerCode: 'C05', version: 'V2.0', fileFormat: 'PDF', colors: '4C+1P', size: '40x60mm', status: '已定稿', remark: '', createDate: '2026-01-10' },
+  { id: '2', code: 'A002', name: '天一DB吊牌', productName: 'DB通用吊牌', customerCode: 'C01', version: 'V1.0', fileFormat: 'AI', colors: '4C', size: '35x50mm', status: '已定稿', remark: '', createDate: '2026-01-15' },
+  { id: '3', code: 'A003', name: 'NEIWAI维珍妮吊牌', productName: 'NEIWAI系列', customerCode: 'C12', version: 'V3.1', fileFormat: 'PDF', colors: '4C+2P', size: '45x65mm', status: '已定稿', remark: '', createDate: '2026-02-01' },
+  { id: '4', code: 'A004', name: 'GWEST织标', productName: 'GWEST织标', customerCode: 'C01', version: 'V1.2', fileFormat: 'AI', colors: '4C', size: '20x60mm', status: '已归档', remark: '', createDate: '2025-11-20' },
+];
+
+export function getArtworks(): Artwork[] { return getOrInitialize(STORAGE_KEYS.artworks, INITIAL_ARTWORKS); }
+export function setArtworks(data: Artwork[]) { setData(STORAGE_KEYS.artworks, data); }
+
 export function resetAllData() {
   setCustomers(INITIAL_CUSTOMERS);
   setVendors(INITIAL_VENDORS);
@@ -306,5 +335,7 @@ export function resetAllData() {
   setScrapOrders(INITIAL_SCRAP_ORDERS);
   setWorkOrders(INITIAL_WORK_ORDERS);
   setJobReports(INITIAL_JOB_REPORTS);
+  setCuttingDies(INITIAL_CUTTING_DIES);
+  setArtworks(INITIAL_ARTWORKS);
   setItem(STORAGE_KEYS.lastSync, new Date().toISOString());
 }

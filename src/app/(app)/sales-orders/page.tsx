@@ -358,8 +358,11 @@ export default function SalesOrdersPage() {
   });
 
   const handleSave = async (form: Partial<SalesOrder>, rows: OrderItemRow[]) => {
+    // 计算合同金额 = 明细金额合计
+    const computed合同金额 = rows.filter(r => r.产品id).reduce((s, r) => s + r.金额, 0);
+    const updatedForm = { ...form, 合同金额: computed合同金额 };
     if (editingItem?.id) {
-      await SalesOrderRepo.update(editingItem.id, form);
+      await SalesOrderRepo.update(editingItem.id, updatedForm);
       const existingItems = await SalesOrderItemRepo.findBySalesOrderId(editingItem.id);
       for (const ei of existingItems) await SalesOrderItemRepo.delete(ei.id);
       for (let i = 0; i < rows.length; i++) {
@@ -382,8 +385,10 @@ export default function SalesOrdersPage() {
           });
         }
       }
+      // 重新计算订单金额/状态
+      await SalesOrderRepo.recomputeAmounts(editingItem.id);
     } else {
-      const created = await SalesOrderRepo.create(form as Omit<SalesOrder, 'id'>);
+      const created = await SalesOrderRepo.create({ ...updatedForm, id: String(Date.now()) } as Omit<SalesOrder, 'id'>);
       for (let i = 0; i < rows.length; i++) {
         const r = rows[i];
         if (r.产品id) {
@@ -404,6 +409,8 @@ export default function SalesOrdersPage() {
           });
         }
       }
+      // 重新计算订单金额/状态
+      await SalesOrderRepo.recomputeAmounts(created.id);
     }
     await loadData();
     setEditingItem(undefined);

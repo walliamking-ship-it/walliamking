@@ -7,10 +7,14 @@ import CsvImportModal from '@/components/CsvImportModal';
 import { Workstation } from '@/lib/types';
 import { WorkstationRepo } from '@/lib/repo';
 
+import StatusBadge, { MoneyCell } from '@/components/StatusBadge';
+
 const columns: Column<Workstation>[] = [
   { key: 'name', label: '工序名称', sortable: true },
   { key: 'sequence', label: '顺序', sortable: true },
-  { key: 'outsource', label: '是否委外' },
+  { key: 'unitPrice', label: '计件单价', sortable: true, render: (w: Workstation) => <MoneyCell value={w.unitPrice} /> },
+  { key: 'unit', label: '单位' },
+  { key: 'outsource', label: '是否委外', render: (w: Workstation) => <StatusBadge status={w.outsource ? '是' : '否'} /> },
   { key: 'remark', label: '备注' },
 ];
 
@@ -26,6 +30,23 @@ function WorkstationForm({ value, onChange }: { value: Partial<Workstation>; onC
         <label className="block text-xs text-gray-500 mb-0.5">顺序</label>
         <input type="number" value={value.sequence ?? ''} onChange={e => onChange('sequence', parseInt(e.target.value) || 0)}
           className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" placeholder="1" />
+      </div>
+      <div>
+        <label className="block text-xs text-gray-500 mb-0.5">计件单价 (元/件)</label>
+        <input type="number" step="0.01" min={0} value={value.unitPrice ?? ''} onChange={e => onChange('unitPrice', parseFloat(e.target.value) || 0)}
+          className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" placeholder="0.00" />
+      </div>
+      <div>
+        <label className="block text-xs text-gray-500 mb-0.5">计件单位</label>
+        <select value={value.unit || '件'} onChange={e => onChange('unit', e.target.value)}
+          className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none bg-white">
+          <option value="件">件</option>
+          <option value="个">个</option>
+          <option value="张">张</option>
+          <option value="色令/件">色令/件</option>
+          <option value="米">米</option>
+          <option value="令">令</option>
+        </select>
       </div>
       <div>
         <label className="block text-xs text-gray-500 mb-0.5">是否委外</label>

@@ -3,7 +3,7 @@
  * USE_MOCK_DATA=true 时数据保存到浏览器localStorage，刷新页面不丢失
  */
 
-import { Customer, Vendor, Material, Product, Process, Workstation, SalesOrder, PurchaseOrder, Inventory, SalesOrderItem, DeliveryOrder, DeliveryOrderItem, PurchaseOrderItem, ReceivingOrder, ReceivingOrderItem, Warehouse, Employee, SalesInvoice, PurchaseInvoice, Bill, PaymentReceipt, PaymentMade, ScrapOrder, WorkOrder, JobReport } from './types';
+import { Customer, Vendor, Material, Product, Process, Workstation, SalesOrder, PurchaseOrder, Inventory, SalesOrderItem, DeliveryOrder, DeliveryOrderItem, PurchaseOrderItem, ReceivingOrder, ReceivingOrderItem, Warehouse, Employee, SalesInvoice, PurchaseInvoice, Bill, PaymentReceipt, PaymentMade, ScrapOrder, WorkOrder, JobReport, CuttingDie, Artwork } from './types';
 import { DataService, TABLE_IDS } from './api';
 import { USE_MOCK_DATA } from './mock-data';
 import {
@@ -32,6 +32,8 @@ import {
   getWorkOrders, setWorkOrders,
   getJobReports, setJobReports,
   getInventory, setInventory,
+  getCuttingDies, setCuttingDies,
+  getArtworks, setArtworks,
 } from './localData';
 
 // ========== 客户 ==========
@@ -375,6 +377,35 @@ export const SalesOrderRepo = {
       return true;
     }
     return await DataService.delete(TABLE_IDS.salesOrders, id);
+  },
+  /**
+   * 从订单明细重新计算并更新订单的合同金额、已送货、未收款项、收款状态、送货状态
+   * 调用时机：新建/编辑订单明细后
+   */
+  async recomputeAmounts(id: string): Promise<SalesOrder | undefined> {
+    const order = await this.findById(id);
+    if (!order) return undefined;
+    const items = await SalesOrderItemRepo.findBySalesOrderId(id);
+    const contractAmount = items.reduce((s, i) => s + i.金额, 0);
+    // 已送货 = 订单明细中已交货的数量 × 对应单价的求和
+    const deliveredAmount = items.reduce((s, i) => s + i.已送货数量 * i.单价, 0);
+    const receivedPayment = order.已收款 ?? 0;
+    const unpaidAmount = Math.max(0, contractAmount - receivedPayment);
+    // 计算收款状态
+    let paymentStatus: SalesOrder['收款状态'] = '未收款';
+    if (receivedPayment > 0 && receivedPayment < contractAmount) paymentStatus = '部分收款';
+    else if (receivedPayment >= contractAmount) paymentStatus = '全部收款';
+    // 计算送货状态
+    let deliveryStatus: SalesOrder['送货状态'] = '未送货';
+    if (deliveredAmount > 0 && deliveredAmount < contractAmount) deliveryStatus = '部分送货';
+    else if (deliveredAmount >= contractAmount) deliveryStatus = '全部送货';
+    return await this.update(id, {
+      合同金额: contractAmount,
+      已送货: deliveredAmount,
+      未收款项: unpaidAmount,
+      收款状态: paymentStatus,
+      送货状态: deliveryStatus,
+    });
   },
 };
 
@@ -899,12 +930,114 @@ export const JobReportRepo = {
     return getJobReports().filter(j => j.工单id === workOrderId);
   },
   async create(data: Omit<JobReport, 'id'>): Promise<JobReport> {
-    const newItem = { ...data, id: String(Date.now()) } as JobReport;
+    // 自动计算计件工资 = 报工数量 × 工序单价
+    const wage = (data.报工数量 || 0) * (data.工序单价 || 0);
+    const newItem = { ...data, id: String(Date.now()), 计件工资: wage, 状态: '待审核' as const } as JobReport;
     setJobReports([...getJobReports(), newItem]);
     return newItem;
   },
+  async update(id: string, data: Partial<JobReport>): Promise<JobReport | undefined> {
+    const all = getJobReports();
+    const idx = all.findIndex(j => j.id === id);
+    if (idx === -1) return undefined;
+    const updated = [...all];
+    // 重新计算工资
+    const quantity = data.报工数量 ?? all[idx].报工数量;
+    const unitPrice = data.工序单价 ?? all[idx].工序单价;
+    const wage = quantity * unitPrice;
+    updated[idx] = { ...updated[idx], ...data, 计件工资: wage };
+    setJobReports(updated);
+    return updated[idx];
+  },
   async delete(id: string): Promise<boolean> {
     setJobReports(getJobReports().filter(j => j.id !== id));
+    return true;
+  },
+  /**
+   * 按工人+时间段汇总计件工资
+   * 用于工资报表
+   */
+  async getWageSummary(startDate: string, endDate: string): Promise<Record<string, {
+    worker: string;
+    totalQuantity: number;
+    totalWage: number;
+    reports: JobReport[];
+  }>> {
+    const all = getJobReports().filter(r => {
+      if (!r.报工日期) return false;
+      return r.报工日期 >= startDate && r.报工日期 <= endDate && r.状态 !== '已作废';
+    });
+    const summary: Record<string, { worker: string; totalQuantity: number; totalWage: number; reports: JobReport[] }> = {};
+    for (const r of all) {
+      if (!summary[r.报工人]) {
+        summary[r.报工人] = { worker: r.报工人, totalQuantity: 0, totalWage: 0, reports: [] };
+      }
+      summary[r.报工人].totalQuantity += r.报工数量;
+      summary[r.报工人].totalWage += r.计件工资;
+      summary[r.报工人].reports.push(r);
+    }
+    return summary;
+  },
+};
+
+// ========== 刀板管理 ==========
+export const CuttingDieRepo = {
+  async findAll(): Promise<CuttingDie[]> {
+    return getCuttingDies();
+  },
+  async findById(id: string): Promise<CuttingDie | undefined> {
+    return getCuttingDies().find(d => d.id === id);
+  },
+  async create(data: Omit<CuttingDie, 'id'>): Promise<CuttingDie> {
+    const all = getCuttingDies();
+    if (all.find(d => d.code === data.code)) throw new Error(`刀板编号 "${data.code}" 已存在`);
+    const newItem = { ...data, id: String(Date.now()) } as CuttingDie;
+    setCuttingDies([...all, newItem]);
+    return newItem;
+  },
+  async update(id: string, data: Partial<CuttingDie>): Promise<CuttingDie | undefined> {
+    const all = getCuttingDies();
+    const idx = all.findIndex(d => d.id === id);
+    if (idx === -1) return undefined;
+    if (data.code && all.find(d => d.id !== id && d.code === data.code)) throw new Error(`刀板编号 "${data.code}" 已存在`);
+    const updated = [...all];
+    updated[idx] = { ...updated[idx], ...data };
+    setCuttingDies(updated);
+    return updated[idx];
+  },
+  async delete(id: string): Promise<boolean> {
+    setCuttingDies(getCuttingDies().filter(d => d.id !== id));
+    return true;
+  },
+};
+
+// ========== 稿件管理 ==========
+export const ArtworkRepo = {
+  async findAll(): Promise<Artwork[]> {
+    return getArtworks();
+  },
+  async findById(id: string): Promise<Artwork | undefined> {
+    return getArtworks().find(a => a.id === id);
+  },
+  async create(data: Omit<Artwork, 'id'>): Promise<Artwork> {
+    const all = getArtworks();
+    if (all.find(a => a.code === data.code)) throw new Error(`稿件编号 "${data.code}" 已存在`);
+    const newItem = { ...data, id: String(Date.now()) } as Artwork;
+    setArtworks([...all, newItem]);
+    return newItem;
+  },
+  async update(id: string, data: Partial<Artwork>): Promise<Artwork | undefined> {
+    const all = getArtworks();
+    const idx = all.findIndex(a => a.id === id);
+    if (idx === -1) return undefined;
+    if (data.code && all.find(a => a.id !== id && a.code === data.code)) throw new Error(`稿件编号 "${data.code}" 已存在`);
+    const updated = [...all];
+    updated[idx] = { ...updated[idx], ...data };
+    setArtworks(updated);
+    return updated[idx];
+  },
+  async delete(id: string): Promise<boolean> {
+    setArtworks(getArtworks().filter(a => a.id !== id));
     return true;
   },
 };

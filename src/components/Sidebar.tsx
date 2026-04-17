@@ -49,8 +49,11 @@ const NAV_GROUPS: NavGroup[] = [
     icon: '🔨',
     items: [
       { href: '/work-orders', label: '施工单', icon: '🔨' },
-      { href: '/job-reports', label: '报工记录', icon: '📝' },
+      { href: '/job-reports', label: '报工管理', icon: '📝' },
       { href: '/workstations', label: '工序', icon: '🔧' },
+      { href: '/processes', label: '工艺', icon: '🎨' },
+      { href: '/cutting-dies', label: '刀板', icon: '🔪' },
+      { href: '/artworks', label: '稿件', icon: '📄' },
     ],
   },
   {

@@ -70,4 +70,6 @@ export const STORAGE_KEYS = {
   purchaseOrderItems: 'purchase_order_items',
   receivingOrders: 'receiving_orders',
   receivingOrderItems: 'receiving_order_items',
+  cuttingDies: 'cutting_dies',
+  artworks: 'artworks',
 } as const;

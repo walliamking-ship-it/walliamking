@@ -46,12 +46,75 @@ export interface Product {
 }
 
 // ========== 工艺 ==========
+// 工艺分类
+export type ProcessCategory = '印刷' | '表面处理' | '印后加工' | '成型' | '组装' | '其他';
+
 export interface Process {
   id: string;
-  name: string;      // 工艺名称
-  unitPrice: number; // 单价
-  outsource: boolean; // 是否委外
-  remark: string;    // 备注
+  name: string;        // 工艺名称
+  category: ProcessCategory; // 工艺分类
+  unitPrice: number;   // 计价单价
+  unit: string;        // 计价单位（件/色令/米/张）
+  outsource: boolean;  // 是否委外
+  // 印刷专用字段
+  machineTypes?: string;  // 适用机台（如：四色机/柔印机/丝印机）
+  minQuantity?: number;   // 最小起订量
+  setupTime?: number;    // 准备时间（分钟）
+  cycleTime?: number;    // 单件周期（秒）
+  // 刀板/稿件相关
+  hasDie?: boolean;       // 是否需要刀板
+  hasArtwork?: boolean;   // 是否需要稿件/菲林
+  // 适用客户（为空表示通用）
+  applicableCustomers?: string[];
+  remark: string;        // 备注
+}
+
+// ========== 产品工艺BOM ==========
+// 某产品需要哪些工艺路线
+export interface ProductProcessBOM {
+  id: string;
+  productId: string;       // 产品ID
+  productCode: string;     // 产品编号（货号）
+  processId: string;       // 工艺ID
+  processName: string;     // 工艺名称
+  sequence: number;        // 工艺顺序
+  isRequired: boolean;    // 是否必做
+  unitPrice: number;       // 本工艺单价（覆盖工艺默认单价）
+  remarks?: string;        // 工艺要求备注
+}
+
+// ========== 刀板管理 ==========
+export interface CuttingDie {
+  id: string;
+  code: string;        // 刀板编号
+  name: string;         // 刀板名称
+  productId?: string;   // 关联产品
+  productName?: string; // 产品名称
+  customerCode?: string; // 适用客户编号
+  size?: string;        // 刀板尺寸（mm）
+  dieType?: '啤刀' | '烫金刀' | '压痕刀' | '激光刀' | '其他';
+  status: '在用' | '库存' | '报废' | '外发';
+  location?: string;    // 存放位置
+  remark: string;
+  createDate: string;
+}
+
+// ========== 稿件/菲林管理 ==========
+export interface Artwork {
+  id: string;
+  code: string;        // 稿件编号
+  name: string;         // 稿件名称
+  productId?: string;   // 关联产品
+  productName?: string;
+  customerCode?: string;// 适用客户编号
+  version?: string;     // 版本号
+  fileFormat?: 'PDF' | 'AI' | 'PSD' | 'CDR' | '其他';
+  filePath?: string;    // 文件存储路径/链接
+  colors?: string;      // 颜色数量（如：4C+1P）
+  size?: string;        // 尺寸规格
+  status: '草稿' | '已定稿' | '已归档' | '已作废';
+  remark: string;
+  createDate: string;
 }
 
 // ========== 工序 ==========
@@ -60,6 +123,8 @@ export interface Workstation {
   name: string;      // 工序名称
   sequence: number;  // 顺序
   outsource: boolean; // 是否委外
+  unitPrice: number; // 计件单价（元/件）
+  unit: string;      // 计件单位（件/个/张）
   remark: string;    // 备注
 }
 
@@ -549,11 +614,14 @@ export interface JobReport {
   工序序号: number;
   工序名称: string;
   执行单位: string;
+  工序单价: number;   // 计件单价（元/件）
   报工数量: number;
+  计件工资: number;  // = 报工数量 × 工序单价
   报工日期: string;
   报工人: string;
   合格率?: number;
   不良数量?: number;
+  状态: '待审核' | '已确认' | '已作废';
   备注: string;
   创建时间: string;
 }
