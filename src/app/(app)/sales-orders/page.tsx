@@ -6,8 +6,8 @@ import OrderTable, { Column } from '@/components/OrderTable';
 import StatusBadge, { MoneyCell, DateCell } from '@/components/StatusBadge';
 import PrintTemplate from '@/components/PrintTemplate';
 import CsvImportModal from '@/components/CsvImportModal';
-import { SalesOrder, SalesOrderItem, Product } from '@/lib/types';
-import { SalesOrderRepo, SalesOrderItemRepo, ProductRepo, WarehouseRepo, DeliveryOrderRepo, DeliveryOrderItemRepo } from '@/lib/repo';
+import { SalesOrder, SalesOrderItem, Product, DeliveryOrder, PaymentReceipt, SalesInvoice, CuttingDie, Artwork } from '@/lib/types';
+import { SalesOrderRepo, SalesOrderItemRepo, ProductRepo, WarehouseRepo, DeliveryOrderRepo, DeliveryOrderItemRepo, PaymentReceiptRepo, SalesInvoiceRepo, CuttingDieRepo, ArtworkRepo } from '@/lib/repo';
 
 type FilterTab = 'all' | 'unpaid' | 'undelivered' | 'draft' | 'delivered';
 
@@ -316,6 +316,13 @@ export default function SalesOrdersPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [orderItemsMap, setOrderItemsMap] = useState<Record<string, SalesOrderItem[]>>({});
   const [warehouses, setWarehouses] = useState<{id: string; name: string}[]>([]);
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [allDeliveryOrders, setAllDeliveryOrders] = useState<DeliveryOrder[]>([]);
+  const [allPaymentReceipts, setAllPaymentReceipts] = useState<PaymentReceipt[]>([]);
+  const [allInvoices, setAllInvoices] = useState<SalesInvoice[]>([]);
+  const [allCuttingDies, setAllCuttingDies] = useState<CuttingDie[]>([]);
+  const [allArtworks, setAllArtworks] = useState<Artwork[]>([]);
+  const [detailTab, setDetailTab] = useState<'basic' | 'delivery' | 'payment' | 'invoice' | 'tools'>('basic');
   const [deliveryModalOpen, setDeliveryModalOpen] = useState(false);
   const [deliverySourceOrder, setDeliverySourceOrder] = useState<SalesOrder | null>(null);
   const [deliveryForm, setDeliveryForm] = useState({ 发货仓库: '', 收货人: '', 联系电话: '', 车牌号: '', 备注: '' });
@@ -330,7 +337,39 @@ export default function SalesOrdersPage() {
     }
   };
 
-  useEffect(() => { loadData(); WarehouseRepo.findAll().then(ws => setWarehouses(ws.map(w => ({ id: w.id, name: w.name })))); }, []);
+  useEffect(() => { loadData(); WarehouseRepo.findAll().then(ws => setWarehouses(ws.map(w => ({ id: w.id, name: w.name })))); ProductRepo.findAll().then(setAllProducts); }, []);
+
+  // 加载关联数据（当选中订单时）
+  useEffect(() => {
+    if (!selectedId) return;
+    Promise.all([
+      DeliveryOrderRepo.findAll(),
+      PaymentReceiptRepo.findAll(),
+      SalesInvoiceRepo.findAll(),
+      CuttingDieRepo.findAll(),
+      ArtworkRepo.findAll(),
+    ]).then(([dos, prs, invs, dies, arts]) => {
+      setAllDeliveryOrders(dos);
+      setAllPaymentReceipts(prs);
+      setAllInvoices(invs);
+      setAllCuttingDies(dies);
+      setAllArtworks(arts);
+    });
+  }, [selectedId]);
+
+  // 选中订单的关联数据
+  const selectedOrder = data.find(d => d.id === selectedId);
+  const orderItems = selectedId ? (orderItemsMap[selectedId] || []) : [];
+  const linkedDeliveries = allDeliveryOrders.filter(d => d.销售订单id === selectedId);
+  const linkedPayments = allPaymentReceipts.filter(p => selectedId && p.关联销售订单ids.includes(selectedId));
+  const linkedInvoices = allInvoices.filter(i => selectedId && i.关联销售订单ids.includes(selectedId));
+  // 刀版/稿件：按订单明细中的产品ID匹配
+  const productIdsInOrder = orderItems.map(i => i.产品id).filter(Boolean);
+  const linkedCuttingDies = allCuttingDies.filter(d => d.productId && productIdsInOrder.includes(d.productId));
+  const linkedArtworks = allArtworks.filter(a => {
+    const p = allProducts.find(p => p.id === a.productId);
+    return p && productIdsInOrder.includes(p.id);
+  });
 
   const loadOrderItems = async (salesOrderId: string) => {
     if (!orderItemsMap[salesOrderId]) {
@@ -599,67 +638,207 @@ export default function SalesOrdersPage() {
       </div>
 
       {/* 详情侧边栏 */}
-      {selectedId && (() => {
-        const item = data.find(d => d.id === selectedId);
-        if (!item) return null;
-        return (
-          <div className="w-80 border-l bg-white flex flex-col flex-shrink-0">
-            <div className="px-4 py-3 border-b flex items-center justify-between">
-              <h3 className="font-semibold text-sm">订单详情</h3>
-              <button onClick={() => setSelectedId(null)} className="text-gray-400 hover:text-gray-600">✕</button>
-            </div>
-            <div className="flex-1 overflow-auto p-4 space-y-3">
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="text-gray-500">单号</div>
-                <div className="text-blue-600 font-mono">{item.单号}</div>
-                <div className="text-gray-500">客户</div>
-                <div className="font-medium">{item.客户名称}</div>
-                <div className="text-gray-500">日期</div>
-                <div><DateCell value={item.日期} /></div>
-                <div className="text-gray-500">制单人</div>
-                <div>{item.制单人 || '-'}</div>
-                <div className="text-gray-500">业务员</div>
-                <div>{item.业务员 || '-'}</div>
-                <div className="text-gray-500">收款状态</div>
-                <div><StatusBadge status={item.收款状态} /></div>
-                <div className="text-gray-500">送货状态</div>
-                <div><StatusBadge status={item.送货状态} /></div>
-                <div className="text-gray-500">计划收款</div>
-                <div><DateCell value={item.计划收款日期} /></div>
-              </div>
-              <div className="border-t pt-3 space-y-2">
-                <div className="flex justify-between text-xs">
-                  <span className="text-gray-500">合同金额</span>
-                  <MoneyCell value={item.合同金额} />
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-gray-500">已送货</span>
-                  <MoneyCell value={item.已送货} />
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-gray-500">已收款</span>
-                  <MoneyCell value={item.已收款} />
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-gray-500">未收款</span>
-                  <MoneyCell value={item.未收款项} className={item.未收款项 > 0 ? 'text-red-600 font-semibold' : ''} />
-                </div>
-              </div>
-              {item.备注 && (
-                <div className="border-t pt-3">
-                  <div className="text-xs text-gray-500 mb-1">备注</div>
-                  <div className="text-xs text-gray-700">{item.备注}</div>
-                </div>
-              )}
-            </div>
-            <div className="p-3 border-t flex gap-2">
-              <button onClick={() => handleEdit(item)} className="flex-1 px-3 py-1.5 text-sm border rounded hover:bg-gray-50">编辑</button>
-              <button onClick={() => setPrintOrder(item)} className="flex-1 px-3 py-1.5 text-sm border rounded hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200">打印</button>
-              <button onClick={() => handleDelete(item.id)} className="flex-1 px-3 py-1.5 text-sm border rounded hover:bg-red-50 hover:text-red-600 hover:border-red-200">删除</button>
-            </div>
+      {selectedId && selectedOrder && (
+        <div className="w-96 border-l bg-white flex flex-col flex-shrink-0">
+          <div className="px-4 py-3 border-b flex items-center justify-between">
+            <h3 className="font-semibold text-sm">订单详情</h3>
+            <button onClick={() => setSelectedId(null)} className="text-gray-400 hover:text-gray-600">✕</button>
           </div>
-        );
-      })()}
+
+          {/* 基本信息 */}
+          <div className="px-4 py-3 border-b grid grid-cols-2 gap-2 text-xs bg-gray-50">
+            <div className="text-gray-500">单号</div>
+            <div className="text-blue-600 font-mono">{selectedOrder.单号}</div>
+            <div className="text-gray-500">客户</div>
+            <div className="font-medium">{selectedOrder.客户名称}</div>
+            <div className="text-gray-500">日期</div>
+            <div><DateCell value={selectedOrder.日期} /></div>
+            <div className="text-gray-500">收款状态</div>
+            <div><StatusBadge status={selectedOrder.收款状态} /></div>
+            <div className="text-gray-500">送货状态</div>
+            <div><StatusBadge status={selectedOrder.送货状态} /></div>
+            <div className="text-gray-500">合同金额</div>
+            <MoneyCell value={selectedOrder.合同金额} />
+            <div className="text-gray-500">已收款</div>
+            <MoneyCell value={selectedOrder.已收款} />
+            <div className="text-gray-500">未收款</div>
+            <MoneyCell value={selectedOrder.未收款项} className={selectedOrder.未收款项 > 0 ? 'text-red-600 font-semibold' : ''} />
+          </div>
+
+          {/* Tab切换 */}
+          <div className="flex border-b bg-gray-50">
+            {[
+              { key: 'basic', label: '明细' },
+              { key: 'delivery', label: `送货单${linkedDeliveries.length > 0 ? `(${linkedDeliveries.length})` : ''}` },
+              { key: 'payment', label: `收款${linkedPayments.length > 0 ? `(${linkedPayments.length})` : ''}` },
+              { key: 'invoice', label: `发票${linkedInvoices.length > 0 ? `(${linkedInvoices.length})` : ''}` },
+              { key: 'tools', label: `刀版/稿${linkedCuttingDies.length + linkedArtworks.length > 0 ? `(${linkedCuttingDies.length + linkedArtworks.length})` : ''}` },
+            ].map(tab => (
+              <button key={tab.key} onClick={() => setDetailTab(tab.key as typeof detailTab)}
+                className={`flex-1 px-2 py-2 text-xs font-medium border-b-2 transition-colors ${detailTab === tab.key ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Tab内容 */}
+          <div className="flex-1 overflow-auto p-3">
+            {/* 基本明细 */}
+            {detailTab === 'basic' && (
+              <div className="space-y-3">
+                <div className="text-xs font-medium text-gray-600">订单明细 ({orderItems.length}项)</div>
+                {orderItems.length === 0 ? (
+                  <div className="text-xs text-gray-400 text-center py-4">暂无明细</div>
+                ) : (
+                  <div className="space-y-1">
+                    {orderItems.map((row, idx) => (
+                      <div key={row.id || idx} className="bg-gray-50 rounded p-2 text-xs">
+                        <div className="flex justify-between font-medium">
+                          <span className="text-blue-600">{row.产品名称}</span>
+                          <span className="text-gray-500">×{row.数量}{row.单位}</span>
+                        </div>
+                        <div className="flex justify-between mt-1 text-gray-400">
+                          <span>单价 ¥{row.单价.toFixed(2)}</span>
+                          <span className="text-blue-600">¥{row.金额.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {selectedOrder.备注 && (
+                  <div className="mt-2 p-2 bg-yellow-50 rounded text-xs text-yellow-700">
+                    <div className="font-medium mb-1">备注</div>
+                    {selectedOrder.备注}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 送货单 */}
+            {detailTab === 'delivery' && (
+              <div className="space-y-2">
+                {linkedDeliveries.length === 0 ? (
+                  <div className="text-xs text-gray-400 text-center py-4">暂无送货单</div>
+                ) : (
+                  linkedDeliveries.map(d => (
+                    <div key={d.id} className="border rounded p-2 text-xs">
+                      <div className="flex justify-between font-medium mb-1">
+                        <span className="text-blue-600 font-mono">{d.单号}</span>
+                        <span className={`px-1.5 py-0.5 rounded text-xs ${d.状态 === '已完成' ? 'bg-green-100 text-green-700' : d.状态 === '部分收货' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600'}`}>{d.状态}</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-1 text-gray-500">
+                        <div>收货人：{d.收货人}</div>
+                        <div>电话：{d.联系电话}</div>
+                        <div>仓库：{d.发货仓库}</div>
+                        <div>日期：{d.发货日期}</div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* 收款记录 */}
+            {detailTab === 'payment' && (
+              <div className="space-y-2">
+                {linkedPayments.length === 0 ? (
+                  <div className="text-xs text-gray-400 text-center py-4">暂无收款记录</div>
+                ) : (
+                  linkedPayments.map(p => (
+                    <div key={p.id} className="border rounded p-2 text-xs">
+                      <div className="flex justify-between font-medium mb-1">
+                        <span className="text-blue-600 font-mono">{p.单号}</span>
+                        <span className="text-green-600 font-semibold">+¥{p.收款金额.toLocaleString()}</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-1 text-gray-500">
+                        <div>日期：{p.收款日期}</div>
+                        <div>方式：{p.收款方式}</div>
+                        <div>状态：{p.状态}</div>
+                        <div>制单：{p.制单人}</div>
+                      </div>
+                      {p.备注 && <div className="mt-1 text-gray-400">备注：{p.备注}</div>}
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* 发票 */}
+            {detailTab === 'invoice' && (
+              <div className="space-y-2">
+                {linkedInvoices.length === 0 ? (
+                  <div className="text-xs text-gray-400 text-center py-4">暂无发票</div>
+                ) : (
+                  linkedInvoices.map(inv => (
+                    <div key={inv.id} className="border rounded p-2 text-xs">
+                      <div className="flex justify-between font-medium mb-1">
+                        <span className="text-blue-600 font-mono">{inv.单号}</span>
+                        <span className="text-orange-600 font-semibold">¥{inv.金额.toLocaleString()}</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-1 text-gray-500">
+                        <div>发票号：{inv.发票号}</div>
+                        <div>税率：{(inv.税率 * 100).toFixed(0)}%</div>
+                        <div>税额：¥{inv.税额.toLocaleString()}</div>
+                        <div>状态：{inv.状态}</div>
+                        <div>开票日期：{inv.开票日期}</div>
+                        <div>制单：{inv.制单人}</div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* 刀版/稿件 */}
+            {detailTab === 'tools' && (
+              <div className="space-y-3">
+                {linkedCuttingDies.length > 0 && (
+                  <div>
+                    <div className="text-xs font-medium text-gray-600 mb-1">🔪 刀版 ({linkedCuttingDies.length})</div>
+                    {linkedCuttingDies.map(d => (
+                      <div key={d.id} className="border rounded p-2 text-xs mb-1">
+                        <div className="flex justify-between">
+                          <span className="font-medium text-orange-700">{d.code} - {d.name}</span>
+                          <span className={`px-1.5 py-0.5 rounded text-xs ${d.status === '在用' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{d.status}</span>
+                        </div>
+                        <div className="text-gray-400 mt-0.5">
+                          {d.dieType} | {d.size || '无尺寸'} | {d.location || '无位置'}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {linkedArtworks.length > 0 && (
+                  <div>
+                    <div className="text-xs font-medium text-gray-600 mb-1">📄 稿件 ({linkedArtworks.length})</div>
+                    {linkedArtworks.map(a => (
+                      <div key={a.id} className="border rounded p-2 text-xs mb-1">
+                        <div className="flex justify-between">
+                          <span className="font-medium text-purple-700">{a.code} - {a.name}</span>
+                          <span className={`px-1.5 py-0.5 rounded text-xs ${a.status === '已定稿' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{a.status}</span>
+                        </div>
+                        <div className="text-gray-400 mt-0.5">
+                          {a.fileFormat} | {a.colors} | {a.version}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {linkedCuttingDies.length === 0 && linkedArtworks.length === 0 && (
+                  <div className="text-xs text-gray-400 text-center py-4">暂无关联刀版或稿件</div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* 底部操作栏 */}
+          <div className="p-3 border-t flex gap-2">
+            <button onClick={() => handleEdit(selectedOrder)} className="flex-1 px-3 py-1.5 text-sm border rounded hover:bg-gray-50">编辑</button>
+            <button onClick={() => setPrintOrder(selectedOrder)} className="flex-1 px-3 py-1.5 text-sm border rounded hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200">打印</button>
+            <button onClick={() => handleDelete(selectedOrder.id)} className="flex-1 px-3 py-1.5 text-sm border rounded hover:bg-red-50 hover:text-red-600 hover:border-red-200">删除</button>
+          </div>
+        </div>
+      )}
 
       <FormModal
         open={modalOpen}
