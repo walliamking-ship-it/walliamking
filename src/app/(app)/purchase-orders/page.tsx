@@ -7,7 +7,14 @@ import StatusBadge, { MoneyCell, DateCell } from '@/components/StatusBadge';
 import PurchasePrintTemplate from '@/components/PurchasePrintTemplate';
 import CsvImportModal from '@/components/CsvImportModal';
 import { PurchaseOrder, PurchaseOrderItem, Product, ReceivingOrder, PaymentMade, PurchaseInvoice } from '@/lib/types';
-import { PurchaseOrderRepo, PurchaseOrderItemRepo, ProductRepo, WarehouseRepo, ReceivingOrderRepo, ReceivingOrderItemRepo, PaymentMadeRepo, PurchaseInvoiceRepo } from '@/lib/repo';
+import { PurchaseOrderRepo, PurchaseOrderItemRepo, ProductRepo, WarehouseRepo, ReceivingOrderRepo, ReceivingOrderItemRepo, PaymentMadeRepo, PurchaseInvoiceRepo, VendorRepo } from '@/lib/repo';
+
+function generatePurchaseOrderNo(): string {
+  const today = new Date();
+  const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
+  const seq = String(Math.floor(Math.random() * 900) + 100);
+  return `CG${dateStr}${seq}`;
+}
 
 const columns: Column<PurchaseOrder>[] = [
   { key: '单号', label: '单号', sortable: true },
@@ -19,6 +26,7 @@ const columns: Column<PurchaseOrder>[] = [
   { key: '已付款', label: '已付款', sortable: true },
   { key: '付款状态', label: '付款状态', sortable: true },
   { key: '收货状态', label: '收货状态', sortable: true },
+  { key: '开票状态', label: '开票状态', sortable: true },
   { key: '制单人', label: '制单人' },
   { key: '备注', label: '备注' },
 ];
@@ -169,17 +177,23 @@ function OrderItemsEditor({ rows, onChange }: { rows: OrderItemRow[]; onChange: 
 }
 
 function PurchaseOrderForm({ value, onChange }: { value: Partial<PurchaseOrder>; onChange: (key: keyof PurchaseOrder, v: any) => void }) {
+  const [vendors, setVendors] = useState<any[]>([]);
+  useEffect(() => { VendorRepo.findAll().then(setVendors); }, []);
   return (
     <div className="grid grid-cols-2 gap-3">
       <div>
-        <label className="block text-xs text-gray-500 mb-0.5">单号 <span className="text-red-500">*</span></label>
-        <input type="text" value={value.单号 || ''} onChange={e => onChange('单号', e.target.value)}
-          className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" placeholder="CG+日期+序号" required />
+        <label className="block text-xs text-gray-500 mb-0.5">单号</label>
+        <div className="w-full border border-gray-200 rounded px-2 py-1.5 text-sm bg-gray-50 text-gray-500">
+          {value.单号 || '自动生成'}
+        </div>
       </div>
       <div>
         <label className="block text-xs text-gray-500 mb-0.5">供应商名称 <span className="text-red-500">*</span></label>
-        <input type="text" value={value.供应商名称 || ''} onChange={e => onChange('供应商名称', e.target.value)}
-          className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" placeholder="S01-供应商名" required />
+        <select value={value.供应商名称 || ''} onChange={e => onChange('供应商名称', e.target.value)}
+          className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none bg-white" required>
+          <option value="">请选择供应商</option>
+          {vendors.map(v => <option key={v.id} value={v.name}>{v.name} ({v.code})</option>)}
+        </select>
       </div>
       <div>
         <label className="block text-xs text-gray-500 mb-0.5">日期</label>
@@ -227,6 +241,16 @@ function PurchaseOrderForm({ value, onChange }: { value: Partial<PurchaseOrder>;
         </select>
       </div>
       <div>
+        <label className="block text-xs text-gray-500 mb-0.5">开票状态</label>
+        <select value={value.开票状态 || ''} onChange={e => onChange('开票状态', e.target.value)}
+          className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none bg-white">
+          <option value="">请选择</option>
+          <option value="未开票">未开票</option>
+          <option value="部分开票">部分开票</option>
+          <option value="全部开票">全部开票</option>
+        </select>
+      </div>
+      <div>
         <label className="block text-xs text-gray-500 mb-0.5">制单人</label>
         <input type="text" value={value.制单人 || ''} onChange={e => onChange('制单人', e.target.value)}
           className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" placeholder="制单人" />
@@ -262,7 +286,7 @@ function FormModal({ open, onClose, onSave, initial, initialItems }: {
   if (!open) return null;
 
   const handleSave = () => {
-    if (!form.单号 || !form.供应商名称) { alert('请填写单号和供应商名称'); return; }
+    if (!form.供应商名称) { alert('请选择供应商名称'); return; }
     onSave(form, items);
     onClose();
   };
@@ -421,6 +445,7 @@ export default function PurchaseOrdersPage() {
         已付款: parseFloat(row['已付款'] || '0') || 0,
         付款状态: (row['付款状态'] || '未付款') as '未付款' | '部分付款' | '全部付款',
         收货状态: (row['收货状态'] || '未收货') as '未收货' | '部分收货' | '全部收货',
+        开票状态: (row['开票状态'] || '未开票') as '未开票' | '部分开票' | '全部开票',
         制单人: row['制单人'] || '', 业务员: row['业务员'] || '',
         收货地址: row['收货地址'] || '', 备注: row['备注'] || '',
       };
@@ -542,11 +567,11 @@ export default function PurchaseOrdersPage() {
       )}
       <PageHeader title="采购订单" searchPlaceholder="搜索 单号 / 供应商名称 / 制单人 / 业务员 / 备注..." onSearch={setSearch}
         actions={[
-          { label: '新建采购单', icon: '＋', variant: 'primary' as const, onClick: () => { setEditingItem({}); setEditingItems([]); setModalOpen(true); } },
+          { label: '新建采购单', icon: '＋', variant: 'primary' as const, onClick: () => { setEditingItem({ 单号: generatePurchaseOrderNo() }); setEditingItems([]); setModalOpen(true); } },
           { label: '导入CSV', icon: '↓', variant: 'default' as const, onClick: () => setImportModalOpen(true) },
           { label: '导出CSV', icon: '↑', variant: 'default' as const, onClick: () => {
-            const csv = ['单号,供应商名称,日期,合同金额,已收货,已付款,未付款,付款状态,收货状态,制单人,业务员,收货地址,备注',
-              ...filtered.map(p => `${p.单号},${p.供应商名称},${p.日期},${p.合同金额},${p.已收货},${p.已付款},${p.未付款 || 0},${p.付款状态},${p.收货状态},${p.制单人},${p.业务员},${p.收货地址 || ''},${p.备注 || ''}`)].join('\n');
+            const csv = ['单号,供应商名称,日期,合同金额,已收货,已付款,未付款,付款状态,收货状态,开票状态,制单人,业务员,收货地址,备注',
+              ...filtered.map(p => `${p.单号},${p.供应商名称},${p.日期},${p.合同金额},${p.已收货},${p.已付款},${p.未付款 || 0},${p.付款状态},${p.收货状态},${p.开票状态 || '未开票'},${p.制单人},${p.业务员},${p.收货地址 || ''},${p.备注 || ''}`)].join('\n');
             const blob = new Blob([csv], { type: 'text/csv' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a'); a.href = url; a.download = `采购订单_${new Date().toISOString().slice(0,10)}.csv`; a.click();
@@ -730,8 +755,8 @@ export default function PurchaseOrdersPage() {
       )}
 
       <CsvImportModal open={importModalOpen} onClose={() => setImportModalOpen(false)} onImport={handleCsvImport}
-        headers={['单号', '供应商名称', '日期', '合同金额', '已收货', '已付款', '付款状态', '收货状态', '制单人', '业务员', '收货地址', '备注']}
-        fields={['单号', '供应商名称', '日期', '合同金额', '已收货', '已付款', '付款状态', '收货状态', '制单人', '业务员', '收货地址', '备注']} />
+        headers={['单号', '供应商名称', '日期', '合同金额', '已收货', '已付款', '付款状态', '收货状态', '开票状态', '制单人', '业务员', '收货地址', '备注']}
+        fields={['单号', '供应商名称', '日期', '合同金额', '已收货', '已付款', '付款状态', '收货状态', '开票状态', '制单人', '业务员', '收货地址', '备注']} />
 
       {showBatchConfirm && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">

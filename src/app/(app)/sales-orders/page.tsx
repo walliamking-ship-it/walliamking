@@ -7,9 +7,16 @@ import StatusBadge, { MoneyCell, DateCell } from '@/components/StatusBadge';
 import PrintTemplate from '@/components/PrintTemplate';
 import CsvImportModal from '@/components/CsvImportModal';
 import { SalesOrder, SalesOrderItem, Product, DeliveryOrder, PaymentReceipt, SalesInvoice, CuttingDie, Artwork } from '@/lib/types';
-import { SalesOrderRepo, SalesOrderItemRepo, ProductRepo, WarehouseRepo, DeliveryOrderRepo, DeliveryOrderItemRepo, PaymentReceiptRepo, SalesInvoiceRepo, CuttingDieRepo, ArtworkRepo } from '@/lib/repo';
+import { SalesOrderRepo, SalesOrderItemRepo, ProductRepo, WarehouseRepo, DeliveryOrderRepo, DeliveryOrderItemRepo, PaymentReceiptRepo, SalesInvoiceRepo, CuttingDieRepo, ArtworkRepo, CustomerRepo } from '@/lib/repo';
 
 type FilterTab = 'all' | 'unpaid' | 'undelivered' | 'draft' | 'delivered';
+
+function generateSalesOrderNo(): string {
+  const today = new Date();
+  const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
+  const seq = String(Math.floor(Math.random() * 900) + 100);
+  return `XS${dateStr}${seq}`;
+}
 
 const columns: Column<SalesOrder>[] = [
   { key: '单号', label: '单号', sortable: true },
@@ -21,6 +28,7 @@ const columns: Column<SalesOrder>[] = [
   { key: '已收款', label: '已收款', sortable: true },
   { key: '收款状态', label: '收款状态', sortable: true },
   { key: '送货状态', label: '送货状态', sortable: true },
+  { key: '开票状态', label: '开票状态', sortable: true },
   { key: '制单人', label: '制单人', sortable: true },
   { key: '备注', label: '备注' },
 ];
@@ -178,17 +186,23 @@ function OrderItemsEditor({ rows, onChange }: { rows: OrderItemRow[]; onChange: 
 }
 
 function SalesOrderForm({ value, onChange }: { value: Partial<SalesOrder>; onChange: (key: keyof SalesOrder, v: any) => void }) {
+  const [customers, setCustomers] = useState<any[]>([]);
+  useEffect(() => { CustomerRepo.findAll().then(setCustomers); }, []);
   return (
     <div className="grid grid-cols-2 gap-3">
       <div>
-        <label className="block text-xs text-gray-500 mb-0.5">单号 <span className="text-red-500">*</span></label>
-        <input type="text" value={value.单号 || ''} onChange={e => onChange('单号', e.target.value)}
-          className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" placeholder="XS+日期+序号" required />
+        <label className="block text-xs text-gray-500 mb-0.5">单号</label>
+        <div className="w-full border border-gray-200 rounded px-2 py-1.5 text-sm bg-gray-50 text-gray-500">
+          {value.单号 || '自动生成'}
+        </div>
       </div>
       <div>
         <label className="block text-xs text-gray-500 mb-0.5">客户名称 <span className="text-red-500">*</span></label>
-        <input type="text" value={value.客户名称 || ''} onChange={e => onChange('客户名称', e.target.value)}
-          className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" placeholder="C01-客户名" required />
+        <select value={value.客户名称 || ''} onChange={e => onChange('客户名称', e.target.value)}
+          className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none bg-white" required>
+          <option value="">请选择客户</option>
+          {customers.map(c => <option key={c.id} value={c.name}>{c.name} ({c.code})</option>)}
+        </select>
       </div>
       <div>
         <label className="block text-xs text-gray-500 mb-0.5">日期</label>
@@ -236,6 +250,16 @@ function SalesOrderForm({ value, onChange }: { value: Partial<SalesOrder>; onCha
         </select>
       </div>
       <div>
+        <label className="block text-xs text-gray-500 mb-0.5">开票状态</label>
+        <select value={value.开票状态 || ''} onChange={e => onChange('开票状态', e.target.value)}
+          className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none bg-white">
+          <option value="">请选择</option>
+          <option value="未开票">未开票</option>
+          <option value="部分开票">部分开票</option>
+          <option value="全部开票">全部开票</option>
+        </select>
+      </div>
+      <div>
         <label className="block text-xs text-gray-500 mb-0.5">制单人</label>
         <input type="text" value={value.制单人 || ''} onChange={e => onChange('制单人', e.target.value)}
           className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" placeholder="制单人" />
@@ -272,8 +296,8 @@ function FormModal({ open, onClose, onSave, initial, initialItems }: {
   if (!open) return null;
 
   const handleSave = () => {
-    if (!form.单号 || !form.客户名称) {
-      alert('请填写单号和客户名称');
+    if (!form.客户名称) {
+      alert('请选择客户名称');
       return;
     }
     onSave(form, items);
@@ -477,6 +501,7 @@ export default function SalesOrdersPage() {
         未收款项: parseFloat(row['未收款项'] || '0') || 0,
         收款状态: (row['收款状态'] || '未收款') as '未收款' | '部分收款' | '全部收款',
         送货状态: (row['送货状态'] || '未送货') as '未送货' | '部分送货' | '全部送货',
+        开票状态: (row['开票状态'] || '未开票') as '未开票' | '部分开票' | '全部开票',
         制单人: row['制单人'] || '', 业务员: row['业务员'] || '',
         备注: row['备注'] || '',
       };
@@ -614,11 +639,11 @@ export default function SalesOrdersPage() {
         searchPlaceholder="搜索 单号 / 客户名称 / 制单人 / 业务员 / 备注..."
         onSearch={setSearch}
         actions={[
-          { label: '新建销售单', icon: '＋', variant: 'primary' as const, onClick: () => { setEditingItem({}); setEditingItems([]); setModalOpen(true); } },
+          { label: '新建销售单', icon: '＋', variant: 'primary' as const, onClick: () => { setEditingItem({ 单号: generateSalesOrderNo() }); setEditingItems([]); setModalOpen(true); } },
           { label: '导入CSV', icon: '↓', variant: 'default' as const, onClick: () => setImportModalOpen(true) },
           { label: '导出CSV', icon: '↑', variant: 'default' as const, onClick: () => {
-            const csv = ['单号,客户名称,日期,合同金额,已送货,未收款项,已收款,收款状态,送货状态,制单人,业务员,计划收款日期,备注',
-              ...filtered.map(s => `${s.单号},${s.客户名称},${s.日期},${s.合同金额},${s.已送货},${s.未收款项 || 0},${s.已收款},${s.收款状态},${s.送货状态},${s.制单人},${s.业务员},${s.计划收款日期 || ''},${s.备注 || ''}`)].join('\n');
+            const csv = ['单号,客户名称,日期,合同金额,已送货,未收款项,已收款,收款状态,送货状态,开票状态,制单人,业务员,计划收款日期,备注',
+              ...filtered.map(s => `${s.单号},${s.客户名称},${s.日期},${s.合同金额},${s.已送货},${s.未收款项 || 0},${s.已收款},${s.收款状态},${s.送货状态},${s.开票状态 || '未开票'},${s.制单人},${s.业务员},${s.计划收款日期 || ''},${s.备注 || ''}`)].join('\n');
             const blob = new Blob([csv], { type: 'text/csv' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a'); a.href = url; a.download = `销售订单_${new Date().toISOString().slice(0,10)}.csv`; a.click();
@@ -868,8 +893,8 @@ export default function SalesOrdersPage() {
       )}
 
       <CsvImportModal open={importModalOpen} onClose={() => setImportModalOpen(false)} onImport={handleCsvImport}
-        headers={['单号', '客户名称', '日期', '合同金额', '已送货', '已收款', '收款状态', '送货状态', '制单人', '业务员', '计划收款日期', '备注']}
-        fields={['单号', '客户名称', '日期', '合同金额', '已送货', '已收款', '收款状态', '送货状态', '制单人', '业务员', '计划收款日期', '备注']} />
+        headers={['单号', '客户名称', '日期', '合同金额', '已送货', '已收款', '收款状态', '送货状态', '开票状态', '制单人', '业务员', '计划收款日期', '备注']}
+        fields={['单号', '客户名称', '日期', '合同金额', '已送货', '已收款', '收款状态', '送货状态', '开票状态', '制单人', '业务员', '计划收款日期', '备注']} />
       {showBatchConfirm && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">

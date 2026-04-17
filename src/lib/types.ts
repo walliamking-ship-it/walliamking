@@ -140,6 +140,7 @@ export interface SalesOrder {
   已收款: number;
   收款状态: '未收款' | '部分收款' | '全部收款';
   送货状态: '未送货' | '部分送货' | '全部送货';
+  开票状态: '未开票' | '部分开票' | '全部开票';
   制单人: string;
   业务员: string;
   计划收款日期: string;
@@ -168,6 +169,7 @@ export interface PurchaseOrder {
   已付款: number;
   付款状态: '未付款' | '部分付款' | '全部付款';
   收货状态: '未收货' | '部分收货' | '全部收货';
+  开票状态: '未开票' | '部分开票' | '全部开票';
   制单人: string;
   业务员: string;
   计划付款日期: string;
