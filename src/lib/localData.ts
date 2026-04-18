@@ -4,6 +4,7 @@
  */
 
 import { getItem, setItem, STORAGE_KEYS } from './storage';
+import { USE_MOCK_DATA } from './mock-data';
 import { Customer, Vendor, Material, Product, Process, Workstation, SalesOrder, PurchaseOrder, Inventory, SalesOrderItem, DeliveryOrder, DeliveryOrderItem, PurchaseOrderItem, ReceivingOrder, ReceivingOrderItem, Warehouse, Employee, User, SalesInvoice, PurchaseInvoice, RoleKey, Bill, PaymentReceipt, PaymentMade, ScrapOrder, WorkOrder, JobReport, CuttingDie, Artwork, Approval } from './types';
 
 // ========== 初始数据（来自秒账） ==========
@@ -200,13 +201,30 @@ const INITIAL_PURCHASE_INVOICES: PurchaseInvoice[] = [
   { id: '1', 单号: 'FP20260412001', 发票号: 'FP87654321', 开票日期: '2026-04-12', 供应商名称: 'S20-辰跃纸业', 关联采购订单ids: ['1'], 金额: 50000.00, 税率: 0.13, 税额: 5660.00, 状态: '已收票', 备注: '', 制单人: '李紫璘' },
 ];
 
-const INITIAL_BILLS: Bill[] = [];
-const INITIAL_PAYMENT_RECEIPTS: PaymentReceipt[] = [];
-const INITIAL_PAYMENT_MADES: PaymentMade[] = [];
-const INITIAL_SCRAP_ORDERS: ScrapOrder[] = [];
+const INITIAL_BILLS: Bill[] = [
+  { id: 'BILL001', 单号: 'BILL20260401', 账单类型: '月度账单', 客户名称: '杭州某科技公司', 账期: '2026年4月', 开始日期: '2026-04-01', 结束日期: '2026-04-30', 关联销售订单ids: ['SO001'], 应收金额: 12000, 已收金额: 5000, 未收金额: 7000, 状态: '部分结清' },
+  { id: 'BILL002', 单号: 'BILL20260402', 账单类型: '月度账单', 客户名称: '上海某品牌', 账期: '2026年4月', 开始日期: '2026-04-01', 结束日期: '2026-04-30', 关联销售订单ids: ['SO003'], 应收金额: 6500, 已收金额: 6500, 未收金额: 0, 状态: '已结清' },
+];
+const INITIAL_PAYMENT_RECEIPTS: PaymentReceipt[] = [
+  { id: 'PR001', 单号: 'PR202604001', 收款日期: '2026-04-15', 客户名称: '杭州某科技公司', 关联销售订单ids: ['SO001'], 收款方式: '银行转账', 收款金额: 5000, 备注: '首付款', 状态: '已确认', 制单人: '张三' },
+  { id: 'PR002', 单号: 'PR202604002', 收款日期: '2026-04-17', 客户名称: '上海某品牌', 关联销售订单ids: ['SO003'], 收款方式: '银行转账', 收款金额: 6500, 备注: '全款', 状态: '已确认', 制单人: '李四' },
+  { id: 'PR003', 单号: 'PR202604003', 收款日期: '2026-04-18', 客户名称: '苏州某工厂', 关联销售订单ids: ['SO004'], 收款方式: '微信', 收款金额: 3000, 备注: '部分收款', 状态: '已确认', 制单人: '王五' },
+];
+const INITIAL_PAYMENT_MADES: PaymentMade[] = [
+  { id: 'PM001', 单号: 'PM202604001', 付款日期: '2026-04-10', 供应商名称: '百思蓝德', 关联采购订单ids: ['PO001'], 付款方式: '银行转账', 付款金额: 5000, 备注: '预付款', 状态: '已确认', 制单人: '张三' },
+  { id: 'PM002', 单号: 'PM202604002', 付款日期: '2026-04-12', 供应商名称: '捷成印刷', 关联采购订单ids: ['PO002'], 付款方式: '银行转账', 付款金额: 10000, 备注: '材料款', 状态: '已确认', 制单人: '李四' },
+];
+const INITIAL_SCRAP_ORDERS: ScrapOrder[] = [
+  { id: 'SC001', 单号: 'SC202604001', 报废日期: '2026-04-15', 仓库: '原材料仓', 关联库存id: '', 产品名称: '双铜纸', 规格: '128g/m²', 单位: '吨', 报废数量: 0.5, 报废金额: 2900, 报废原因: '受潮', 状态: '已处理', 制单人: '张三' },
+  { id: 'SC002', 单号: 'SC202604002', 报废日期: '2026-04-17', 仓库: '成品仓', 关联销售订单id: 'SO001', 产品名称: '彩色印刷包装盒', 规格: '300*200*100mm', 单位: '个', 报废数量: 20, 报废金额: 110, 报废原因: '印刷色差', 状态: '待处理', 制单人: '李四' },
+];
 
 const INITIAL_WORK_ORDERS: WorkOrder[] = [];
-const INITIAL_JOB_REPORTS: JobReport[] = [];
+const INITIAL_JOB_REPORTS: JobReport[] = [
+  { id: 'JR001', 单号: 'JR202604001', 工单id: 'WO001', 工单号: 'WO202604001', 工序序号: 1, 工序名称: '印刷', 执行单位: '生产车间A', 工序单价: 0.5, 合格数量: 500, 报废数量: 5, 计件工资: 250, 工作日期: '2026-04-16', 操作员: '工人甲', 状态: '已完成', 备注: '' },
+  { id: 'JR002', 单号: 'JR202604002', 工单id: 'WO001', 工单号: 'WO202604001', 工序序号: 2, 工序名称: '覆膜', 执行单位: '生产车间A', 工序单价: 0.3, 合格数量: 490, 报废数量: 0, 计件工资: 147, 工作日期: '2026-04-17', 操作员: '工人乙', 状态: '已完成', 备注: '' },
+  { id: 'JR003', 单号: 'JR202604003', 工单id: 'WO002', 工单号: 'WO202604002', 工序序号: 1, 工序名称: '印前设计', 执行单位: '设计部', 工序单价: 2.0, 合格数量: 100, 报废数量: 0, 计件工资: 200, 工作日期: '2026-04-18', 操作员: '设计师A', 状态: '已完成', 备注: '' },
+];
 
 // ========== 审批流 ==========
 const INITIAL_APPROVALS: Approval[] = [];
@@ -214,15 +232,28 @@ export function getApprovals(): Approval[] { return getOrInitialize(STORAGE_KEYS
 export function setApprovals(data: Approval[]) { setData(STORAGE_KEYS.approvals, data); }
 
 const INITIAL_SALES_ORDER_ITEMS: SalesOrderItem[] = [];
-const INITIAL_DELIVERY_ORDERS: DeliveryOrder[] = [];
+const INITIAL_DELIVERY_ORDERS: DeliveryOrder[] = [
+  { id: 'DO001', 单号: 'DO202604001', 销售订单id: 'SO001', 销售订单号: 'SO202604001', 发货日期: '2026-04-16', 收货人: '陈总', 联系电话: '138-0000-8888', 发货仓库: '成品仓', 车牌号: '浙A12345', 备注: '首批送货', 状态: '已完成', 制单人: '张三', 创建时间: '2026-04-16' },
+  { id: 'DO002', 单号: 'DO202604002', 销售订单id: 'SO002', 销售订单号: 'SO202604002', 发货日期: '2026-04-18', 收货人: '王经理', 联系电话: '139-0000-9999', 发货仓库: '成品仓', 车牌号: '浙B67890', 备注: '部分送货', 状态: '部分收货', 制单人: '李四', 创建时间: '2026-04-18' },
+  { id: 'DO003', 单号: 'DO202604003', 销售订单id: 'SO003', 销售订单号: 'SO202604003', 发货日期: '2026-04-17', 收货人: '刘总', 联系电话: '136-0000-6666', 发货仓库: '成品仓', 车牌号: '浙C11111', 备注: '', 状态: '已完成', 制单人: '王五', 创建时间: '2026-04-17' },
+  { id: 'DO004', 单号: 'DO202604004', 销售订单id: 'SO004', 销售订单号: 'SO202604004', 发货日期: '2026-04-19', 收货人: '赵总', 联系电话: '135-0000-7777', 发货仓库: '成品仓', 车牌号: '浙D22222', 备注: '等待排车', 状态: '未完成', 制单人: '赵六', 创建时间: '2026-04-19' },
+];
 const INITIAL_DELIVERY_ORDER_ITEMS: DeliveryOrderItem[] = [];
 const INITIAL_PURCHASE_ORDER_ITEMS: PurchaseOrderItem[] = [];
-const INITIAL_RECEIVING_ORDERS: ReceivingOrder[] = [];
+const INITIAL_RECEIVING_ORDERS: ReceivingOrder[] = [
+  { id: 'RO001', 单号: 'RO202604001', 采购订单id: 'PO001', 采购订单号: 'PO202604001', 收货日期: '2026-04-12', 收货人: '仓库管理员', 联系电话: '138-0000-1111', 收货仓库: '原材料仓', 车牌号: '浙E33333', 备注: '双铜纸入库', 状态: '已完成', 制单人: '张三' },
+  { id: 'RO002', 单号: 'RO202604002', 采购订单id: 'PO002', 采购订单号: 'PO202604002', 收货日期: '2026-04-14', 收货人: '仓库管理员', 联系电话: '138-0000-1111', 收货仓库: '原材料仓', 车牌号: '浙F44444', 备注: '牛皮纸部分到货', 状态: '部分收货', 制单人: '李四' },
+];
 const INITIAL_RECEIVING_ORDER_ITEMS: ReceivingOrderItem[] = [];
 
 // ========== 数据管理器 ==========
 
 function getOrInitialize<T>(key: string, initial: T[]): T[] {
+  if (USE_MOCK_DATA) {
+    // When using mock data, always use initial data (ignore any stale empty data in localStorage)
+    setItem(key, initial);
+    return [...initial];
+  }
   const stored = getItem<T[]>(key, []);
   if (stored.length === 0) {
     // Initialize with default data
