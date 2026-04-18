@@ -6,6 +6,24 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyToken, getTokenFromCookie } from '@/lib/auth';
+
+// 验证用户Token
+async function verifyUserToken(request: NextRequest): Promise<{ valid: boolean; error?: string }> {
+  const cookieHeader = request.headers.get('cookie');
+  const userToken = getTokenFromCookie(cookieHeader);
+  
+  if (!userToken) {
+    return { valid: false, error: '未登录' };
+  }
+  
+  const payload = await verifyToken(userToken);
+  if (!payload) {
+    return { valid: false, error: '登录已过期' };
+  }
+  
+  return { valid: true };
+}
 
 // PD账号凭证 (cli_a9521be8ba351cb2)
 const APP_ID = 'cli_a9521be8ba351cb2';
@@ -25,6 +43,7 @@ const NEW_TABLE_ID_MAP: Record<string, string> = {
   'tblaHsdww8fItDA7': 'tblaHsdww8fItDA7',  // 库存表
   'tbl8kwvXcRF0MsnN': 'tbl8kwvXcRF0MsnN',  // 工艺表
   'tbl480Hyy0UijS5f': 'tbl480Hyy0UijS5f',  // 工序表
+  'tbl8mOvOWR5xnMOH': 'tbl8mOvOWR5xnMOH',  // 施工单
 };
 
 // 旧tableId → 新tableId 映射（保持repo.ts兼容性）
@@ -40,6 +59,27 @@ const TABLE_ID_MAP: Record<string, string> = {
   'tblrsogIjpuZHHBq': 'tblwOVw10twy4sQB',  // salesOrders → 销售订单
   'tblQFJLUW9ijCAYN': 'tblve9n3goCwJFDB',  // purchaseOrders → 采购订单
   'tbll0QRgcWpOhBS3': 'tblaHsdww8fItDA7',  // inventory → 库存表
+  'tblWorkOrders': 'tbl8mOvOWR5xnMOH',  // workOrders → 施工单
+};
+
+// 销售订单表专用字段映射（英文 → 中文）
+const SO_FIELD_MAP: Record<string, string> = {
+  'no': '单号',
+  'salesOrderItems': '销售订单明细',
+  '客户名称': '客户名称',
+  'date': '日期',
+  'contractAmount': '合同金额',
+  'deliveryAmount': '已送货',
+  'paidAmount': '已收款',
+  'unpaidAmount': '未收款项',
+  'paymentStatus': '收款状态',
+  'deliveryStatus': '送货状态',
+  'invoicingStatus': '开票状态',
+  'creator': '制单人',
+  'salesperson': '业务员',
+  'plannedDeliveryDate': '计划送货日期',
+  'plannedPaymentDate': '计划收款日期',
+  'remark': '备注',
 };
 
 // 通用英文字段 → 中文字段名 映射（客户表）
@@ -56,30 +96,65 @@ const FIELD_MAP: Record<string, string> = {
 
 // 供应商表专用字段映射（覆盖通用映射）
 const VENDOR_FIELD_MAP: Record<string, string> = {
-  'code': '供应商编号', 'name': '供应商名称', 'contact': '联系人', 'phone': '电话', 'address': '地址', 'remark': '备注',
+  'code': '供应商编号',
+  'name': '供应商名称',
+  'contact': '联系人',
+  'contactPhone': '联系电话',
+  'phone': '电话',
+  'address': '地址',
+  'remark': '备注',
 };
 
 // 采购订单表专用字段映射
 const PO_FIELD_MAP: Record<string, string> = {
-  'no': '单号', 'supplier': '供应商', 'date': '日期', 'contractAmount': '合同金额',
-  'paidAmount': '已付款', 'unpaidAmount': '未付款', 'paymentStatus': '付款状态',
-  'deliveryStatus': '收货状态', 'creator': '制单人', 'salesperson': '业务员',
-  'receivedAmount': '已收货', 'deliveryAddress': '收货地址',
+  'no': '单号',
+  'purchaseOrderItems': '采购订单明细',
+  'supplier': '供应商',
+  'supplierName': '供应商名称',
+  'date': '日期',
+  'contractAmount': '合同金额',
+  'paidAmount': '已付款',
+  'unpaidAmount': '未付款',
+  'paymentStatus': '付款状态',
+  'deliveryStatus': '收货状态',
+  'invoicingStatus': '开票状态',
+  'creator': '制单人',
+  'salesperson': '业务员',
+  'plannedDeliveryDate': '计划收货日期',
+  'plannedPaymentDate': '计划付款日期',
+  'receivedAmount': '已收货',
+  'deliveryAddress': '收货地址',
+  'remark': '备注',
 };
 
 // 库存表专用字段映射
 const INV_FIELD_MAP: Record<string, string> = {
-  'name': '名称', 'spec': '规格', 'unit': '单位', 'warehouse': '仓库',
-  'stockQuantity': '库存数量', 'inTransitQuantity': '在途数量', 'safeStock': '安全库存',
+  'name': '产品名称',
+  'productName': '产品名称',
+  'code': '货号',
+  'spec': '规格',
+  'unit': '单位',
+  'category': '分类',
+  'warehouse': '仓库',
+  'stockQuantity': '当前库存',
+  'inTransitQuantity': '采购在途',
+  'safeStock': '安全库存',
   'costPrice': '成本价',
+  'remark': '备注',
 };
 
 // 根据tableId获取英→中字段映射
 function getFieldMap(tableId: string): Record<string, string> {
   const vid = TABLE_ID_MAP[tableId] || tableId;
+  if (vid === 'tbl6i3ISskNbntwl') return { ...FIELD_MAP };                         // customers
   if (vid === 'tblmzQPQFNHBmDIz') return { ...FIELD_MAP, ...VENDOR_FIELD_MAP }; // vendors
+  if (vid === 'tblVj4gqWCKr06qO') return { ...FIELD_MAP };                         // products
+  if (vid === 'tblImy02DzQZAL7b') return { ...FIELD_MAP };                         // materials
+  if (vid === 'tblwOVw10twy4sQB') return { ...FIELD_MAP, ...SO_FIELD_MAP };     // sales orders
   if (vid === 'tblve9n3goCwJFDB') return { ...FIELD_MAP, ...PO_FIELD_MAP };     // purchase orders
   if (vid === 'tblaHsdww8fItDA7') return { ...FIELD_MAP, ...INV_FIELD_MAP };     // inventory
+  if (vid === 'tbl8kwvXcRF0MsnN') return { ...FIELD_MAP };                         // processes
+  if (vid === 'tbl480Hyy0UijS5f') return { ...FIELD_MAP };                         // workstations
   return FIELD_MAP;
 }
 
@@ -118,6 +193,12 @@ async function getToken(): Promise<string> {
 
 // GET /api/proxy?tableId=xxx&action=list|get&id=xxx
 export async function GET(request: NextRequest) {
+  // 验证用户登录
+  const auth = await verifyUserToken(request);
+  if (!auth.valid) {
+    return NextResponse.json({ code: 401, msg: auth.error }, { status: 401 });
+  }
+
   const { searchParams } = new URL(request.url);
   const tableId = searchParams.get('tableId') || '';
   const action = searchParams.get('action') || 'list';
@@ -181,6 +262,12 @@ export async function GET(request: NextRequest) {
 // POST /api/proxy
 // Body: { tableId, action, id?, fields? }
 export async function POST(request: NextRequest) {
+  // 验证用户登录
+  const auth = await verifyUserToken(request);
+  if (!auth.valid) {
+    return NextResponse.json({ code: 401, msg: auth.error }, { status: 401 });
+  }
+
   try {
     const body = await request.json();
     const { tableId, action, id, fields } = body;

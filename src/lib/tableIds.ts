@@ -11,5 +11,5 @@ export const TABLE_IDS = {
   salesOrders: 'tblrsogIjpuZHHBq',
   purchaseOrders: 'tblQFJLUW9ijCAYN',
   inventory: 'tbll0QRgcWpOhBS3',
-  processingOrders: 'tblQFJLUW9ijCAYN', // TODO: 待创建加工单表
+  workOrders: 'tbl8mOvOWR5xnMOH',  // 施工单
 };

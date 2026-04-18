@@ -928,31 +928,46 @@ export const ScrapOrderRepo = {
 // ========== 生产工单 ==========
 export const WorkOrderRepo = {
   async findAll(): Promise<WorkOrder[]> {
-    return getWorkOrders();
+    if (USE_MOCK_DATA) return getWorkOrders();
+    return await DataService.list(TABLE_IDS.workOrders) as WorkOrder[];
   },
   async findById(id: string): Promise<WorkOrder | undefined> {
-    return getWorkOrders().find(w => w.id === id);
+    const all = await this.findAll();
+    return all.find(w => w.id === id);
   },
   async findBySalesOrderId(salesOrderId: string): Promise<WorkOrder[]> {
-    return getWorkOrders().filter(w => w.关联销售订单id === salesOrderId);
+    const all = await this.findAll();
+    return all.filter(w => w.关联销售订单id === salesOrderId);
   },
   async create(data: Omit<WorkOrder, 'id'>): Promise<WorkOrder> {
-    const newItem = { ...data, id: String(Date.now()) } as WorkOrder;
-    setWorkOrders([...getWorkOrders(), newItem]);
-    return newItem;
+    if (USE_MOCK_DATA) {
+      const newItem = { ...data, id: String(Date.now()) } as WorkOrder;
+      setWorkOrders([...getWorkOrders(), newItem]);
+      return newItem;
+    }
+    await DataService.create(TABLE_IDS.workOrders, data);
+    const updated = await this.findAll();
+    return updated[updated.length - 1];
   },
   async update(id: string, data: Partial<WorkOrder>): Promise<WorkOrder | undefined> {
-    const all = getWorkOrders();
-    const idx = all.findIndex(w => w.id === id);
-    if (idx === -1) return undefined;
-    const updated = [...all];
-    updated[idx] = { ...updated[idx], ...data };
-    setWorkOrders(updated);
-    return updated[idx];
+    if (USE_MOCK_DATA) {
+      const all = getWorkOrders();
+      const idx = all.findIndex(w => w.id === id);
+      if (idx === -1) return undefined;
+      const updated = [...all];
+      updated[idx] = { ...updated[idx], ...data };
+      setWorkOrders(updated);
+      return updated[idx];
+    }
+    await DataService.update(TABLE_IDS.workOrders, id, data);
+    return await this.findById(id);
   },
   async delete(id: string): Promise<boolean> {
-    setWorkOrders(getWorkOrders().filter(w => w.id !== id));
-    return true;
+    if (USE_MOCK_DATA) {
+      setWorkOrders(getWorkOrders().filter(w => w.id !== id));
+      return true;
+    }
+    return await DataService.delete(TABLE_IDS.workOrders, id);
   },
 };
 
