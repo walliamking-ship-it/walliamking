@@ -7,6 +7,11 @@ export interface Customer {
   phone: string;     // 电话
   address: string;   // 地址
   remark: string;    // 备注
+  // 开票信息
+  taxNumber: string;   // 税号
+  bankAccount: string; // 银行帐号
+  bankCode: string;    // 开户行号
+  bankName: string;    // 开户行名称
 }
 
 // ========== 供应商 ==========
@@ -18,6 +23,11 @@ export interface Vendor {
   phone: string;     // 电话
   address: string;   // 地址
   remark: string;    // 备注
+  // 开票信息
+  taxNumber: string;   // 税号
+  bankAccount: string; // 银行帐号
+  bankCode: string;    // 开户行号
+  bankName: string;    // 开户行名称
 }
 
 // ========== 物料 ==========

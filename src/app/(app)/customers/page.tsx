@@ -46,6 +46,30 @@ function CustomerForm({ value, onChange, readOnlyCode }: { value: Partial<Custom
         <input type="text" value={value.address || ''} onChange={e => onChange('address', e.target.value)}
           className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" placeholder="详细地址" />
       </div>
+      {/* 开票信息 */}
+      <div className="col-span-2 mt-2 pt-2 border-t border-gray-200">
+        <p className="text-xs font-medium text-gray-500 mb-2">📋 开票信息</p>
+      </div>
+      <div>
+        <label className="block text-xs text-gray-500 mb-0.5">税号</label>
+        <input type="text" value={value.taxNumber || ''} onChange={e => onChange('taxNumber', e.target.value)}
+          className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" placeholder="统一社会信用代码" />
+      </div>
+      <div>
+        <label className="block text-xs text-gray-500 mb-0.5">银行帐号</label>
+        <input type="text" value={value.bankAccount || ''} onChange={e => onChange('bankAccount', e.target.value)}
+          className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" placeholder="银行帐号" />
+      </div>
+      <div>
+        <label className="block text-xs text-gray-500 mb-0.5">开户行号</label>
+        <input type="text" value={value.bankCode || ''} onChange={e => onChange('bankCode', e.target.value)}
+          className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" placeholder="联行号/支行号" />
+      </div>
+      <div>
+        <label className="block text-xs text-gray-500 mb-0.5">开户行名称</label>
+        <input type="text" value={value.bankName || ''} onChange={e => onChange('bankName', e.target.value)}
+          className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" placeholder="开户行全称" />
+      </div>
       <div className="col-span-2">
         <label className="block text-xs text-gray-500 mb-0.5">备注</label>
         <textarea value={value.remark || ''} onChange={e => onChange('remark', e.target.value)}
@@ -79,7 +103,7 @@ function FormModal({ open, onClose, onSave, initial, existingCustomers }: {
       if (initial?.id) {
         setForm(initial);
       } else {
-        setForm({ code: generateCustomerCode(existingCustomers), name: '', contact: '', phone: '', address: '', remark: '' });
+        setForm({ code: generateCustomerCode(existingCustomers), name: '', contact: '', phone: '', address: '', remark: '', taxNumber: '', bankAccount: '', bankCode: '', bankName: '' });
       }
     }
   }, [initial, open, existingCustomers]);
