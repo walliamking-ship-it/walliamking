@@ -26,8 +26,8 @@ async function verifyUserToken(request: NextRequest): Promise<{ valid: boolean; 
 }
 
 // PD账号凭证 (cli_a9521be8ba351cb2)
-const APP_ID = process.env.FEISHU_APP_ID || 'cli_a942474699f85cc1';
-const APP_SECRET = process.env.FEISHU_APP_SECRET || 'aY6lJiIPeicpOVzyRMFROCUFRijRY4pf';
+const APP_ID = 'cli_a9521be8ba351cb2';
+const APP_SECRET = '3pjAPhlHHM89rNh94Iu3BcUPqTlCVBJE';
 
 // 新Bitable App Token
 const APP_TOKEN = 'HfLfbLOE5aQCy5sZXHfc281FnDf';
@@ -85,6 +85,7 @@ const SO_FIELD_MAP: Record<string, string> = {
 // 通用英文字段 → 中文字段名 映射（客户表）
 const FIELD_MAP: Record<string, string> = {
   'code': '客户编号', 'name': '客户名称', 'contact': '联系人', 'phone': '电话', 'address': '地址', 'remark': '备注',
+  'taxNumber': '税号', 'bankAccount': '银行帐号', 'bankCode': '开户行号', 'bankName': '开户行名称',
   'spec': '规格', 'unit': '单位', 'category': '分类',
   'customer': '客户', 'purchasePrice': '进价', 'salePrice': '售价',
   'unitPrice': '单价', 'outsource': '是否委外', 'sequence': '顺序',
