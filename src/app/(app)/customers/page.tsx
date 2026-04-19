@@ -12,6 +12,9 @@ const columns: Column<Customer>[] = [
   { key: 'name', label: '客户名称', sortable: true },
   { key: 'contact', label: '联系人' },
   { key: 'phone', label: '电话' },
+  { key: 'taxNumber', label: '税号' },
+  { key: 'bankAccount', label: '银行帐号' },
+  { key: 'bankName', label: '开户行' },
   { key: 'address', label: '地址' },
   { key: 'remark', label: '备注' },
 ];
