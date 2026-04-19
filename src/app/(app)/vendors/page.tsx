@@ -16,13 +16,15 @@ const columns: Column<Vendor>[] = [
   { key: 'remark', label: '备注' },
 ];
 
-function VendorForm({ value, onChange }: { value: Partial<Vendor>; onChange: (key: keyof Vendor, v: any) => void }) {
+function VendorForm({ value, onChange, readOnlyCode }: { value: Partial<Vendor>; onChange: (key: keyof Vendor, v: any) => void; readOnlyCode?: boolean }) {
   return (
     <div className="grid grid-cols-2 gap-3">
       <div>
         <label className="block text-xs text-gray-500 mb-0.5">供应商编号 <span className="text-red-500">*</span></label>
-        <input type="text" value={value.code || ''} onChange={e => onChange('code', e.target.value)}
-          className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" placeholder="如: S01" required />
+        <input type="text" value={value.code || ''} readOnly={readOnlyCode}
+          onChange={readOnlyCode ? undefined : e => onChange('code', e.target.value)}
+          className={`w-full border rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none ${readOnlyCode ? 'bg-gray-100 border-gray-200 text-gray-600' : 'border-gray-300'}`}
+          placeholder="自动生成" />
       </div>
       <div>
         <label className="block text-xs text-gray-500 mb-0.5">供应商名称 <span className="text-red-500">*</span></label>
@@ -53,14 +55,33 @@ function VendorForm({ value, onChange }: { value: Partial<Vendor>; onChange: (ke
   );
 }
 
-function FormModal({ open, onClose, onSave, initial }: {
+function generateVendorCode(existing: Vendor[]): string {
+  const codes = existing
+    .map(v => v.code)
+    .filter(Boolean)
+    .filter(code => /^S\d+$/.test(code))
+    .map(code => parseInt(code.slice(1), 10));
+  const max = codes.length > 0 ? Math.max(...codes) : 0;
+  return `S${String(max + 1).padStart(3, '0')}`;
+}
+
+function FormModal({ open, onClose, onSave, initial, existingVendors }: {
   open: boolean;
   onClose: () => void;
   onSave: (item: Partial<Vendor>) => void;
   initial?: Partial<Vendor>;
+  existingVendors: Vendor[];
 }) {
   const [form, setForm] = useState<Partial<Vendor>>(initial || {});
-  useEffect(() => { setForm(initial || {}); }, [initial, open]);
+  useEffect(() => {
+    if (open) {
+      if (initial?.id) {
+        setForm(initial);
+      } else {
+        setForm({ code: generateVendorCode(existingVendors), name: '', contact: '', phone: '', address: '', remark: '' });
+      }
+    }
+  }, [initial, open, existingVendors]);
   if (!open) return null;
 
   const handleSave = () => {
@@ -77,7 +98,7 @@ function FormModal({ open, onClose, onSave, initial }: {
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
         </div>
         <div className="p-5">
-          <VendorForm value={form} onChange={(k, v) => setForm(f => ({ ...f, [k]: v }))} />
+          <VendorForm value={form} onChange={(k, v) => setForm(f => ({ ...f, [k]: v }))} readOnlyCode={!initial?.id} />
         </div>
         <div className="px-5 py-3 border-t flex justify-end gap-2 bg-gray-50">
           <button onClick={onClose} className="px-4 py-1.5 text-sm border rounded hover:bg-gray-100">取消</button>
@@ -206,7 +227,7 @@ export default function VendorsPage() {
         <OrderTable columns={tableColumns} data={filtered} loading={loading} emptyMessage="暂无供应商数据"
           onRowClick={item => handleEdit(item)} renderOrderNumber={item => <span className="text-blue-600 font-mono text-xs hover:underline">{item.code}</span>} />
       </div>
-      <FormModal open={modalOpen} onClose={() => { setModalOpen(false); setEditingItem(undefined); }} onSave={handleSave} initial={editingItem} />
+      <FormModal open={modalOpen} onClose={() => { setModalOpen(false); setEditingItem(undefined); }} onSave={handleSave} initial={editingItem} existingVendors={data} />
       <CsvImportModal open={importModalOpen} onClose={() => setImportModalOpen(false)} onImport={handleCsvImport}
         headers={['供应商编号', '供应商名称', '联系人', '电话', '地址', '备注']}
         fields={['code', 'name', 'contact', 'phone', 'address', 'remark']} />

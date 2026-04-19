@@ -18,13 +18,15 @@ const columns: Column<Product>[] = [
   { key: 'remark', label: '备注' },
 ];
 
-function ProductForm({ value, onChange }: { value: Partial<Product>; onChange: (key: keyof Product, v: any) => void }) {
+function ProductForm({ value, onChange, readOnlyCode }: { value: Partial<Product>; onChange: (key: keyof Product, v: any) => void; readOnlyCode?: boolean }) {
   return (
     <div className="grid grid-cols-2 gap-3">
       <div>
         <label className="block text-xs text-gray-500 mb-0.5">货号</label>
-        <input type="text" value={value.code || ''} onChange={e => onChange('code', e.target.value)}
-          className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" placeholder="如: C05HT0001" />
+        <input type="text" value={value.code || ''} readOnly={readOnlyCode}
+          onChange={readOnlyCode ? undefined : e => onChange('code', e.target.value)}
+          className={`w-full border rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none ${readOnlyCode ? 'bg-gray-100 border-gray-200 text-gray-600' : 'border-gray-300'}`}
+          placeholder="自动生成" />
       </div>
       <div>
         <label className="block text-xs text-gray-500 mb-0.5">产品名称 <span className="text-red-500">*</span></label>
@@ -70,15 +72,34 @@ function ProductForm({ value, onChange }: { value: Partial<Product>; onChange: (
   );
 }
 
-function FormModal({ open, onClose, onSave, initial }: {
+function generateProductCode(existing: Product[]): string {
+  const codes = existing
+    .map(p => p.code)
+    .filter(Boolean)
+    .filter(code => /^P\d+$/.test(code))
+    .map(code => parseInt(code.slice(1), 10));
+  const max = codes.length > 0 ? Math.max(...codes) : 0;
+  return `P${String(max + 1).padStart(4, '0')}`;
+}
+
+function FormModal({ open, onClose, onSave, initial, existingProducts }: {
   open: boolean;
   onClose: () => void;
   onSave: (item: Partial<Product>) => void;
   initial?: Partial<Product>;
+  existingProducts: Product[];
 }) {
   const [form, setForm] = useState<Partial<Product>>(initial || {});
 
-  useEffect(() => { setForm(initial || {}); }, [initial, open]);
+  useEffect(() => {
+    if (open) {
+      if (initial?.id) {
+        setForm(initial);
+      } else {
+        setForm({ code: generateProductCode(existingProducts), name: '', spec: '', unit: '', category: '', customer: '', purchasePrice: 0, salePrice: 0, remark: '' });
+      }
+    }
+  }, [initial, open, existingProducts]);
 
   if (!open) return null;
 
@@ -96,7 +117,7 @@ function FormModal({ open, onClose, onSave, initial }: {
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
         </div>
         <div className="p-5">
-          <ProductForm value={form} onChange={(k, v) => setForm(f => ({ ...f, [k]: v }))} />
+          <ProductForm value={form} onChange={(k, v) => setForm(f => ({ ...f, [k]: v }))} readOnlyCode={!initial?.id} />
         </div>
         <div className="px-5 py-3 border-t flex justify-end gap-2 bg-gray-50">
           <button onClick={onClose} className="px-4 py-1.5 text-sm border rounded hover:bg-gray-100">取消</button>
@@ -216,6 +237,7 @@ export default function ProductsPage() {
         onClose={() => { setModalOpen(false); setEditingItem(undefined); }}
         onSave={handleSave}
         initial={editingItem}
+        existingProducts={data}
       />
       <CsvImportModal open={importModalOpen} onClose={() => setImportModalOpen(false)} onImport={handleCsvImport}
         headers={['货号', '产品名称', '规格型号', '单位', '分类', '客户', '进价', '售价', '备注']}

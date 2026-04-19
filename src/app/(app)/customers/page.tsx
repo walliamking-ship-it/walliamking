@@ -16,13 +16,15 @@ const columns: Column<Customer>[] = [
   { key: 'remark', label: '备注' },
 ];
 
-function CustomerForm({ value, onChange }: { value: Partial<Customer>; onChange: (key: keyof Customer, v: any) => void }) {
+function CustomerForm({ value, onChange, readOnlyCode }: { value: Partial<Customer>; onChange: (key: keyof Customer, v: any) => void; readOnlyCode?: boolean }) {
   return (
     <div className="grid grid-cols-2 gap-3">
       <div>
         <label className="block text-xs text-gray-500 mb-0.5">客户编号 <span className="text-red-500">*</span></label>
-        <input type="text" value={value.code || ''} onChange={e => onChange('code', e.target.value)}
-          className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" placeholder="如: C01" required />
+        <input type="text" value={value.code || ''} readOnly={readOnlyCode}
+          onChange={readOnlyCode ? undefined : e => onChange('code', e.target.value)}
+          className={`w-full border rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none ${readOnlyCode ? 'bg-gray-100 border-gray-200 text-gray-600' : 'border-gray-300'}`}
+          placeholder="自动生成" />
       </div>
       <div>
         <label className="block text-xs text-gray-500 mb-0.5">客户名称 <span className="text-red-500">*</span></label>
@@ -53,15 +55,34 @@ function CustomerForm({ value, onChange }: { value: Partial<Customer>; onChange:
   );
 }
 
-function FormModal({ open, onClose, onSave, initial }: {
+function generateCustomerCode(existing: Customer[]): string {
+  const codes = existing
+    .map(c => c.code)
+    .filter(Boolean)
+    .filter(code => /^C\d+$/.test(code))
+    .map(code => parseInt(code.slice(1), 10));
+  const max = codes.length > 0 ? Math.max(...codes) : 0;
+  return `C${String(max + 1).padStart(3, '0')}`;
+}
+
+function FormModal({ open, onClose, onSave, initial, existingCustomers }: {
   open: boolean;
   onClose: () => void;
   onSave: (item: Partial<Customer>) => void;
   initial?: Partial<Customer>;
+  existingCustomers: Customer[];
 }) {
   const [form, setForm] = useState<Partial<Customer>>(initial || {});
 
-  useEffect(() => { setForm(initial || {}); }, [initial, open]);
+  useEffect(() => {
+    if (open) {
+      if (initial?.id) {
+        setForm(initial);
+      } else {
+        setForm({ code: generateCustomerCode(existingCustomers), name: '', contact: '', phone: '', address: '', remark: '' });
+      }
+    }
+  }, [initial, open, existingCustomers]);
 
   if (!open) return null;
 
@@ -79,7 +100,7 @@ function FormModal({ open, onClose, onSave, initial }: {
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
         </div>
         <div className="p-5">
-          <CustomerForm value={form} onChange={(k, v) => setForm(f => ({ ...f, [k]: v }))} />
+          <CustomerForm value={form} onChange={(k, v) => setForm(f => ({ ...f, [k]: v }))} readOnlyCode={!initial?.id} />
         </div>
         <div className="px-5 py-3 border-t flex justify-end gap-2 bg-gray-50">
           <button onClick={onClose} className="px-4 py-1.5 text-sm border rounded hover:bg-gray-100">取消</button>
@@ -261,6 +282,7 @@ export default function CustomersPage() {
         onClose={() => { setModalOpen(false); setEditingItem(undefined); }}
         onSave={handleSave}
         initial={editingItem}
+        existingCustomers={data}
       />
       <CsvImportModal
         open={importModalOpen}
