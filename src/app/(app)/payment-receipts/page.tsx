@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react';
 import PageHeader from '@/components/PageHeader';
 import OrderTable, { Column } from '@/components/OrderTable';
 import StatusBadge, { MoneyCell, DateCell } from '@/components/StatusBadge';
-import { PaymentReceipt, SalesOrder } from '@/lib/types';
-import { PaymentReceiptRepo, SalesOrderRepo, SalesOrderItemRepo } from '@/lib/repo';
+import { PaymentReceipt, SalesOrder, Customer } from '@/lib/types';
+import { PaymentReceiptRepo, SalesOrderRepo, SalesOrderItemRepo, CustomerRepo } from '@/lib/repo';
 
 function generateReceiptNo(): string {
   const today = new Date();
@@ -16,11 +16,12 @@ function generateReceiptNo(): string {
 
 const PAYMENT_METHODS = ['现金', '银行转账', '微信', '支付宝', '其他'] as const;
 
-function PaymentReceiptFormModal({ open, onClose, onSave, initial, salesOrders }: {
+function PaymentReceiptFormModal({ open, onClose, onSave, initial, salesOrders, customers }: {
   open: boolean; onClose: () => void;
   onSave: (item: Omit<PaymentReceipt, 'id'>) => void;
   initial?: PaymentReceipt;
   salesOrders: SalesOrder[];
+  customers: Customer[];
 }) {
   const [form, setForm] = useState({
     单号: '', 收款日期: '', 客户名称: '', 关联销售订单ids: [] as string[],
@@ -84,8 +85,11 @@ function PaymentReceiptFormModal({ open, onClose, onSave, initial, salesOrders }
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-0.5">客户名称 <span className="text-red-500">*</span></label>
-              <input type="text" value={form.客户名称} onChange={e => updateField('客户名称', e.target.value)}
-                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" placeholder="客户名称" />
+              <select value={form.客户名称} onChange={e => updateField('客户名称', e.target.value)}
+                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none bg-white">
+                <option value="">请选择客户</option>
+                {customers.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+              </select>
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-0.5">收款方式</label>
@@ -147,6 +151,7 @@ function PaymentReceiptFormModal({ open, onClose, onSave, initial, salesOrders }
 export default function PaymentReceiptsPage() {
   const [data, setData] = useState<PaymentReceipt[]>([]);
   const [salesOrders, setSalesOrders] = useState<SalesOrder[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
@@ -156,12 +161,14 @@ export default function PaymentReceiptsPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [receipts, orders] = await Promise.all([
+      const [receipts, orders, custs] = await Promise.all([
         PaymentReceiptRepo.findAll(),
         SalesOrderRepo.findAll(),
+        CustomerRepo.findAll(),
       ]);
       setData(receipts);
       setSalesOrders(orders);
+      setCustomers(custs);
     } finally { setLoading(false); }
   };
   useEffect(() => { loadData(); }, []);
@@ -256,6 +263,7 @@ export default function PaymentReceiptsPage() {
         onSave={handleSave}
         initial={editingItem}
         salesOrders={salesOrders}
+        customers={customers}
       />
     </div>
   );

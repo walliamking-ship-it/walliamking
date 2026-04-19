@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import PageHeader from '@/components/PageHeader';
 import OrderTable, { Column } from '@/components/OrderTable';
-import { PaymentMade, PurchaseOrder } from '@/lib/types';
-import { PaymentMadeRepo, PurchaseOrderRepo } from '@/lib/repo';
+import { PaymentMade, PurchaseOrder, Vendor } from '@/lib/types';
+import { PaymentMadeRepo, PurchaseOrderRepo, VendorRepo } from '@/lib/repo';
 
 function generatePaymentNo(): string {
   const today = new Date();
@@ -15,11 +15,12 @@ function generatePaymentNo(): string {
 
 const PAYMENT_METHODS = ['现金', '银行转账', '微信', '支付宝', '其他'] as const;
 
-function PaymentMadeFormModal({ open, onClose, onSave, initial, purchaseOrders }: {
+function PaymentMadeFormModal({ open, onClose, onSave, initial, purchaseOrders, vendors }: {
   open: boolean; onClose: () => void;
   onSave: (item: Omit<PaymentMade, 'id'>) => void;
   initial?: PaymentMade;
   purchaseOrders: PurchaseOrder[];
+  vendors: Vendor[];
 }) {
   const [form, setForm] = useState({
     单号: '', 付款日期: '', 供应商名称: '', 关联采购订单ids: [] as string[],
@@ -83,8 +84,11 @@ function PaymentMadeFormModal({ open, onClose, onSave, initial, purchaseOrders }
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-0.5">供应商名称 <span className="text-red-500">*</span></label>
-              <input type="text" value={form.供应商名称} onChange={e => updateField('供应商名称', e.target.value)}
-                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" placeholder="供应商名称" />
+              <select value={form.供应商名称} onChange={e => updateField('供应商名称', e.target.value)}
+                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none bg-white">
+                <option value="">请选择供应商</option>
+                {vendors.map(v => <option key={v.id} value={v.name}>{v.name}</option>)}
+              </select>
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-0.5">付款方式</label>
@@ -146,6 +150,7 @@ function PaymentMadeFormModal({ open, onClose, onSave, initial, purchaseOrders }
 export default function PaymentMadesPage() {
   const [data, setData] = useState<PaymentMade[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
@@ -154,12 +159,14 @@ export default function PaymentMadesPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [mades, orders] = await Promise.all([
+      const [mades, orders, vends] = await Promise.all([
         PaymentMadeRepo.findAll(),
         PurchaseOrderRepo.findAll(),
+        VendorRepo.findAll(),
       ]);
       setData(mades);
       setPurchaseOrders(orders);
+      setVendors(vends);
     } finally { setLoading(false); }
   };
   useEffect(() => { loadData(); }, []);
@@ -252,6 +259,7 @@ export default function PaymentMadesPage() {
         onSave={handleSave}
         initial={editingItem}
         purchaseOrders={purchaseOrders}
+        vendors={vendors}
       />
     </div>
   );

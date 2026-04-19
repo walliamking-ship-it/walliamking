@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react';
 import PageHeader from '@/components/PageHeader';
 import OrderTable, { Column } from '@/components/OrderTable';
 import StatusBadge, { MoneyCell, DateCell } from '@/components/StatusBadge';
-import { SalesInvoice, PurchaseInvoice, InvoiceStatus, SalesOrder, PurchaseOrder } from '@/lib/types';
-import { SalesInvoiceRepo, PurchaseInvoiceRepo, SalesOrderRepo, PurchaseOrderRepo } from '@/lib/repo';
+import { SalesInvoice, PurchaseInvoice, InvoiceStatus, SalesOrder, PurchaseOrder, Customer, Vendor } from '@/lib/types';
+import { SalesInvoiceRepo, PurchaseInvoiceRepo, SalesOrderRepo, PurchaseOrderRepo, CustomerRepo, VendorRepo } from '@/lib/repo';
 
 type InvoiceType = 'sales' | 'purchase';
 
@@ -54,11 +54,12 @@ function StatusTag({ status }: { status: InvoiceStatus }) {
   return <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${colors[status]}`}>{status}</span>;
 }
 
-function SalesInvoiceFormModal({ open, onClose, onSave, initial, salesOrders }: {
+function SalesInvoiceFormModal({ open, onClose, onSave, initial, salesOrders, customers }: {
   open: boolean; onClose: () => void;
   onSave: (item: Omit<SalesInvoice, 'id'>) => void;
   initial?: SalesInvoice;
   salesOrders: SalesOrder[];
+  customers: Customer[];
 }) {
   const [form, setForm] = useState<SalesInvoiceForm>({
     单号: '', 发票号: '', 开票日期: '', 客户名称: '',
@@ -136,8 +137,11 @@ function SalesInvoiceFormModal({ open, onClose, onSave, initial, salesOrders }: 
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-0.5">客户名称 <span className="text-red-500">*</span></label>
-              <input type="text" value={form.客户名称} onChange={e => updateField('客户名称', e.target.value)}
-                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" placeholder="客户名称" />
+              <select value={form.客户名称} onChange={e => updateField('客户名称', e.target.value)}
+                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none bg-white">
+                <option value="">请选择客户</option>
+                {customers.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+              </select>
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-0.5">金额（含税）</label>
@@ -206,11 +210,12 @@ function SalesInvoiceFormModal({ open, onClose, onSave, initial, salesOrders }: 
   );
 }
 
-function PurchaseInvoiceFormModal({ open, onClose, onSave, initial, purchaseOrders }: {
+function PurchaseInvoiceFormModal({ open, onClose, onSave, initial, purchaseOrders, vendors }: {
   open: boolean; onClose: () => void;
   onSave: (item: Omit<PurchaseInvoice, 'id'>) => void;
   initial?: PurchaseInvoice;
   purchaseOrders: PurchaseOrder[];
+  vendors: Vendor[];
 }) {
   const [form, setForm] = useState<PurchaseInvoiceForm>({
     单号: '', 发票号: '', 开票日期: '', 供应商名称: '',
@@ -287,8 +292,11 @@ function PurchaseInvoiceFormModal({ open, onClose, onSave, initial, purchaseOrde
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-0.5">供应商名称 <span className="text-red-500">*</span></label>
-              <input type="text" value={form.供应商名称} onChange={e => updateField('供应商名称', e.target.value)}
-                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" placeholder="供应商名称" />
+              <select value={form.供应商名称} onChange={e => updateField('供应商名称', e.target.value)}
+                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none bg-white">
+                <option value="">请选择供应商</option>
+                {vendors.map(v => <option key={v.id} value={v.name}>{v.name}</option>)}
+              </select>
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-0.5">金额（含税）</label>
@@ -362,6 +370,8 @@ export default function InvoicesPage() {
   const [purchaseData, setPurchaseData] = useState<PurchaseInvoice[]>([]);
   const [salesOrders, setSalesOrders] = useState<SalesOrder[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
@@ -372,16 +382,20 @@ export default function InvoicesPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [sInv, pInv, sos, pos] = await Promise.all([
+      const [sInv, pInv, sos, pos, custs, vends] = await Promise.all([
         SalesInvoiceRepo.findAll(),
         PurchaseInvoiceRepo.findAll(),
         SalesOrderRepo.findAll(),
         PurchaseOrderRepo.findAll(),
+        CustomerRepo.findAll(),
+        VendorRepo.findAll(),
       ]);
       setSalesData(sInv);
       setPurchaseData(pInv);
       setSalesOrders(sos);
       setPurchaseOrders(pos);
+      setCustomers(custs);
+      setVendors(vends);
     } finally { setLoading(false); }
   };
   useEffect(() => { loadData(); }, []);
@@ -533,6 +547,7 @@ export default function InvoicesPage() {
           onSave={handleSalesSave}
           initial={editingSales}
           salesOrders={salesOrders}
+          customers={customers}
         />
       )}
       {tab === 'purchase' && (
@@ -542,6 +557,7 @@ export default function InvoicesPage() {
           onSave={handlePurchaseSave}
           initial={editingPurchase}
           purchaseOrders={purchaseOrders}
+          vendors={vendors}
         />
       )}
     </div>
