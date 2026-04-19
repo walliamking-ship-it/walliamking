@@ -26,8 +26,8 @@ async function verifyUserToken(request: NextRequest): Promise<{ valid: boolean; 
 }
 
 // PD账号凭证 (cli_a9521be8ba351cb2)
-const APP_ID = 'cli_a9521be8ba351cb2';
-const APP_SECRET = '3pjAPhlHHM89rNh94Iu3BcUPqTlCVBJE';
+const APP_ID = process.env.FEISHU_APP_ID || 'cli_a942474699f85cc1';
+const APP_SECRET = process.env.FEISHU_APP_SECRET || 'aY6lJiIPeicpOVzyRMFROCUFRijRY4pf';
 
 // 新Bitable App Token
 const APP_TOKEN = 'HfLfbLOE5aQCy5sZXHfc281FnDf';
@@ -129,18 +129,53 @@ const PO_FIELD_MAP: Record<string, string> = {
 
 // 库存表专用字段映射
 const INV_FIELD_MAP: Record<string, string> = {
-  'name': '产品名称',
-  'productName': '产品名称',
+  'name': '名称',
+  'productName': '名称',
   'code': '货号',
   'spec': '规格',
   'unit': '单位',
   'category': '分类',
   'warehouse': '仓库',
-  'stockQuantity': '当前库存',
-  'inTransitQuantity': '采购在途',
+  'stockQuantity': '库存数量',
+  'inTransitQuantity': '在途数量',
   'safeStock': '安全库存',
   'costPrice': '成本价',
   'remark': '备注',
+  'qty': '库存数量',
+};
+
+// 产品表专用字段映射
+const PRODUCT_FIELD_MAP: Record<string, string> = {
+  'productName': '产品名称',
+  'code': '货号',
+  'spec': '规格型号',
+  'unit': '单位',
+  'customer': '客户',
+  'category': '分类',
+  'purchasePrice': '进价',
+  'salePrice': '售价',
+};
+
+// 施工单专用字段映射
+const WO_FIELD_MAP: Record<string, string> = {
+  'no': '单号',
+  'salesOrderNo': '关联销售订单号',
+  'productName': '产品名称',
+  'materialCode': '物料编码',
+  'spec': '规格',
+  'unit': '单位',
+  'planQty': '计划数量',
+  'completedQty': '已完成数量',
+  'productionUnit': '生产单位',
+  'executor': '执行单位',
+  'status': '状态',
+  'planStartDate': '计划开始日期',
+  'planEndDate': '计划完成日期',
+  'actualStartDate': '实际开始日期',
+  'actualEndDate': '实际完成日期',
+  'remark': '备注',
+  'creator': '制单人',
+  'createdAt': '创建时间',
 };
 
 // 根据tableId获取英→中字段映射
@@ -148,23 +183,29 @@ function getFieldMap(tableId: string): Record<string, string> {
   const vid = TABLE_ID_MAP[tableId] || tableId;
   if (vid === 'tbl6i3ISskNbntwl') return { ...FIELD_MAP };                         // customers
   if (vid === 'tblmzQPQFNHBmDIz') return { ...FIELD_MAP, ...VENDOR_FIELD_MAP }; // vendors
-  if (vid === 'tblVj4gqWCKr06qO') return { ...FIELD_MAP };                         // products
+  if (vid === 'tblVj4gqWCKr06qO') return { ...FIELD_MAP, ...PRODUCT_FIELD_MAP }; // products
   if (vid === 'tblImy02DzQZAL7b') return { ...FIELD_MAP };                         // materials
   if (vid === 'tblwOVw10twy4sQB') return { ...FIELD_MAP, ...SO_FIELD_MAP };     // sales orders
   if (vid === 'tblve9n3goCwJFDB') return { ...FIELD_MAP, ...PO_FIELD_MAP };     // purchase orders
   if (vid === 'tblaHsdww8fItDA7') return { ...FIELD_MAP, ...INV_FIELD_MAP };     // inventory
   if (vid === 'tbl8kwvXcRF0MsnN') return { ...FIELD_MAP };                         // processes
   if (vid === 'tbl480Hyy0UijS5f') return { ...FIELD_MAP };                         // workstations
+  if (vid === 'tbl8mOvOWR5xnMOH') return { ...FIELD_MAP, ...WO_FIELD_MAP };     // work orders
   return FIELD_MAP;
 }
 
-const REVERSE_MAP: Record<string, string> = Object.fromEntries(Object.entries(FIELD_MAP).map(([en, cn]) => [cn, en]));
+// 根据tableId获取中→英反向映射
+function getReverseMap(tableId: string): Record<string, string> {
+  const fieldMap = getFieldMap(tableId);
+  return Object.fromEntries(Object.entries(fieldMap).map(([en, cn]) => [cn, en]));
+}
 
-// 中文字段 → 英文 转换
-function cnToEn(fields: Record<string, unknown>): Record<string, unknown> {
+// 中文字段 → 英文 转换（支持按表特定映射）
+function cnToEn(fields: Record<string, unknown>, tableId?: string): Record<string, unknown> {
+  const reverseMap = tableId ? getReverseMap(tableId) : Object.fromEntries(Object.entries(FIELD_MAP).map(([en, cn]) => [cn, en]));
   const result: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(fields)) {
-    result[REVERSE_MAP[k] || k] = v;
+    result[reverseMap[k] || k] = v;
   }
   return result;
 }
@@ -228,7 +269,7 @@ export async function GET(request: NextRequest) {
         if (listData.code === 0 && listData.data?.items) {
           allItems.push(...listData.data.items.map((r: any) => ({
             id: r.record_id,
-            ...cnToEn(r.fields)
+            ...cnToEn(r.fields, tableId)
           })));
           pageToken = listData.data.has_more ? listData.data.page_token : undefined;
         } else {
@@ -249,7 +290,7 @@ export async function GET(request: NextRequest) {
       if (data.code !== 0) return NextResponse.json(data, { status: 500 });
       return NextResponse.json({
         code: 0,
-        data: { id: data.data.record.record_id, ...cnToEn(data.data.record.fields) }
+        data: { id: data.data.record.record_id, ...cnToEn(data.data.record.fields, tableId) }
       });
     }
 

@@ -1,24 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { TABLE_IDS } from '@/lib/tableIds';
 
+const APP_ID = process.env.FEISHU_APP_ID || 'cli_a942474699f85cc1';
+const APP_SECRET = process.env.FEISHU_APP_SECRET || 'aY6lJiIPeicpOVzyRMFROCUFRijRY4pf';
 const APP_TOKEN = 'EUyCb0aIcavugUsXJaocRtR6n6b';
 
-const TABLE_IDS: Record<string, string> = {
-  customers: 'tbl39rTGYqOozWgD',
-  vendors: 'tblaJHIldDm1egUK',
-  materials: 'tblXqOpBNKo4btqD',
-  products: 'tbl0SuYwqxW5Wulc',
-  processes: 'tblPZgPPQwMiQwWe',
-  workstations: 'tbl91U0HVS4QpbT0',
-};
+// 将 kebab-case (sales-orders) 转为 camelCase (salesOrders)
+function toCamelCase(entity: string): string {
+  return entity.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
+}
+
+// 实体名 → tableId
+function getTableId(entity: string): string | undefined {
+  const key = toCamelCase(entity);
+  return (TABLE_IDS as Record<string, string>)[key];
+}
 
 async function getToken(): Promise<string> {
   const res = await fetch('https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      app_id: 'cli_a9521be8ba351cb2',
-      app_secret: '3pjAPhlHHM89rNh94Iu3BcUPqTlCVBJE'
-    })
+    body: JSON.stringify({ app_id: APP_ID, app_secret: APP_SECRET })
   });
   const data = await res.json();
   return data.tenant_access_token;
@@ -52,7 +54,7 @@ function enToCn(data: Record<string, unknown>): Record<string, unknown> {
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ entity: string }> }) {
   const { entity } = await params;
-  const tableId = TABLE_IDS[entity];
+  const tableId = getTableId(entity);
   if (!tableId) return NextResponse.json({ code: 404, msg: 'Entity not found' }, { status: 404 });
 
   try {
@@ -75,7 +77,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ entity: string }> }) {
   const { entity } = await params;
-  const tableId = TABLE_IDS[entity];
+  const tableId = getTableId(entity);
   if (!tableId) return NextResponse.json({ code: 404, msg: 'Entity not found' }, { status: 404 });
 
   try {
@@ -98,7 +100,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ entity: string }> }) {
   const { entity } = await params;
-  const tableId = TABLE_IDS[entity];
+  const tableId = getTableId(entity);
   if (!tableId) return NextResponse.json({ code: 404, msg: 'Entity not found' }, { status: 404 });
 
   try {
@@ -121,7 +123,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ entity: string }> }) {
   const { entity } = await params;
-  const tableId = TABLE_IDS[entity];
+  const tableId = getTableId(entity);
   if (!tableId) return NextResponse.json({ code: 404, msg: 'Entity not found' }, { status: 404 });
 
   try {
