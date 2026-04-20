@@ -8,14 +8,29 @@ import PrintTemplate from '@/components/PrintTemplate';
 import CsvImportModal from '@/components/CsvImportModal';
 import { SalesOrder, SalesOrderItem, Product, DeliveryOrder, PaymentReceipt, SalesInvoice, CuttingDie, Artwork } from '@/lib/types';
 import { SalesOrderRepo, SalesOrderItemRepo, ProductRepo, WarehouseRepo, DeliveryOrderRepo, DeliveryOrderItemRepo, PaymentReceiptRepo, SalesInvoiceRepo, CuttingDieRepo, ArtworkRepo, CustomerRepo } from '@/lib/repo';
+import { exportCsvTemplate } from '@/lib/csvExport';
 
 type FilterTab = 'all' | 'unpaid' | 'undelivered' | 'draft' | 'delivered';
 
-function generateSalesOrderNo(): string {
+// 根据最新单号生成下一个顺序号
+async function generateNextSalesOrderNo(): Promise<string> {
   const today = new Date();
   const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
-  const seq = String(Math.floor(Math.random() * 900) + 100);
-  return `XS${dateStr}${seq}`;
+  const allOrders = await SalesOrderRepo.findAll();
+  // 防御：确保 allOrders 是数组
+  if (!Array.isArray(allOrders)) {
+    console.error('SalesOrderRepo.findAll() returned non-array:', allOrders);
+    return `XS${dateStr}001`;
+  }
+  // 找当天最大流水号
+  const todayPrefix = `XS${dateStr}`;
+  const todayOrders = allOrders
+    .map(o => o?.单号)
+    .filter(no => typeof no === 'string' && no.startsWith(todayPrefix))
+    .map(no => parseInt(no!.slice(-3)));
+  const maxSeq = todayOrders.length > 0 ? Math.max(...todayOrders) : 0;
+  const nextSeq = String(maxSeq + 1).padStart(3, '0');
+  return `XS${dateStr}${nextSeq}`;
 }
 
 const columns: Column<SalesOrder>[] = [
@@ -77,12 +92,13 @@ function OrderItemsEditor({ rows, onChange }: { rows: OrderItemRow[]; onChange: 
     if (field === '产品id') {
       const prod = products.find(p => p.id === value);
       if (prod) {
-        row.产品名称 = prod.name;
-        row.物料编码 = prod.code;
-        row.规格 = prod.spec;
-        row.单位 = prod.unit;
-        row.单价 = prod.salePrice;
-        row.金额 = prod.salePrice * row.数量;
+        // 处理产品名称字段（可能是 name, productName 或 产品名称）
+        row.产品名称 = (prod as any).productName || (prod as any)['产品名称'] || prod.name;
+        row.物料编码 = (prod as any).code || prod.code;
+        row.规格 = (prod as any).spec || (prod as any)['规格型号'] || prod.spec;
+        row.单位 = (prod as any).unit || prod.unit;
+        row.单价 = (prod as any).salePrice || (prod as any)['售价'] || prod.salePrice;
+        row.金额 = row.单价 * row.数量;
       }
     }
     if (field === '单价' || field === '数量') {
@@ -138,7 +154,7 @@ function OrderItemsEditor({ rows, onChange }: { rows: OrderItemRow[]; onChange: 
                     >
                       <option value="">请选择产品</option>
                       {products.map(p => (
-                        <option key={p.id} value={p.id}>{p.name} ({p.code})</option>
+                        <option key={p.id} value={p.id}>{(p as any).productName || (p as any)['产品名称'] || p.name} ({(p as any).code || p.code})</option>
                       ))}
                     </select>
                   </td>
@@ -146,7 +162,7 @@ function OrderItemsEditor({ rows, onChange }: { rows: OrderItemRow[]; onChange: 
                   <td className="px-1 py-1 text-gray-600">{row.规格}</td>
                   <td className="px-1 py-1 text-gray-600">{row.单位}</td>
                   <td className="px-1 py-1">
-                    <input type="number" step="0.01" value={row.单价 || ''}
+                    <input type="number" step="0.0001" value={row.单价 || ''}
                       onChange={e => updateRow(idx, '单价', parseFloat(e.target.value) || 0)}
                       className="w-20 border border-gray-300 rounded px-1 py-0.5 text-xs focus:border-blue-500 focus:outline-none" />
                   </td>
@@ -285,6 +301,7 @@ function FormModal({ open, onClose, onSave, initial, initialItems }: {
   initial?: Partial<SalesOrder>;
   initialItems?: OrderItemRow[];
 }) {
+  const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<Partial<SalesOrder>>(initial || {});
   const [items, setItems] = useState<OrderItemRow[]>(initialItems || []);
 
@@ -295,12 +312,21 @@ function FormModal({ open, onClose, onSave, initial, initialItems }: {
 
   if (!open) return null;
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (saving) return;
     if (!form.客户名称) {
       alert('请选择客户名称');
       return;
     }
-    onSave(form, items);
+    setSaving(true);
+    try {
+      await onSave(form, items);
+    } catch (e: any) {
+      setSaving(false);
+      alert('保存失败：' + (e.message || '未知错误'));
+      return;
+    }
+    setSaving(false);
     onClose();
   };
 
@@ -317,7 +343,7 @@ function FormModal({ open, onClose, onSave, initial, initialItems }: {
         </div>
         <div className="px-5 py-3 border-t flex justify-end gap-2 bg-gray-50">
           <button onClick={onClose} className="px-4 py-1.5 text-sm border rounded hover:bg-gray-100">取消</button>
-          <button onClick={handleSave} className="px-4 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">保存</button>
+          <button onClick={handleSave} disabled={saving} className="px-4 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">{saving ? '保存中...' : '保存'}</button>
         </div>
       </div>
     </div>
@@ -427,9 +453,22 @@ export default function SalesOrdersPage() {
   });
 
   const handleSave = async (form: Partial<SalesOrder>, rows: OrderItemRow[]) => {
+    // 验证客户名称必须存在于客户清单
+    if (!form.客户名称) throw new Error('请选择客户名称');
+    const customers = await CustomerRepo.findAll();
+    if (!Array.isArray(customers)) throw new Error('客户数据加载失败，请刷新重试');
+    const customerExists = customers.some(c => c.name === form.客户名称 || c.code === form.客户名称);
+    if (!customerExists) throw new Error(`客户 "${form.客户名称}" 不在客户清单中，请先添加该客户`);
+
+    // 验证单号格式（新建时）
+    if (!editingItem?.id && !form.单号) throw new Error('单号不能为空');
+    const noRegex = /^XS\d{11}$/;
+    if (!editingItem?.id && form.单号 && !noRegex.test(form.单号)) throw new Error('单号格式应为 XS+年月日+流水号，如 XS20260419001');
+
     // 计算合同金额 = 明细金额合计
     const computed合同金额 = rows.filter(r => r.产品id).reduce((s, r) => s + r.金额, 0);
     const updatedForm = { ...form, 合同金额: computed合同金额 };
+
     if (editingItem?.id) {
       await SalesOrderRepo.update(editingItem.id, updatedForm);
       const existingItems = await SalesOrderItemRepo.findBySalesOrderId(editingItem.id);
@@ -454,7 +493,6 @@ export default function SalesOrdersPage() {
           });
         }
       }
-      // 重新计算订单金额/状态
       await SalesOrderRepo.recomputeAmounts(editingItem.id);
     } else {
       const created = await SalesOrderRepo.create({ ...updatedForm, id: String(Date.now()) } as Omit<SalesOrder, 'id'>);
@@ -478,7 +516,6 @@ export default function SalesOrdersPage() {
           });
         }
       }
-      // 重新计算订单金额/状态
       await SalesOrderRepo.recomputeAmounts(created.id);
     }
     await loadData();
@@ -594,7 +631,7 @@ export default function SalesOrdersPage() {
                   <td className="px-2 py-1 font-mono text-gray-600">{row.物料编码}</td>
                   <td className="px-2 py-1 text-gray-600">{row.规格}</td>
                   <td className="px-2 py-1 text-gray-600">{row.单位}</td>
-                  <td className="px-2 py-1 font-mono">{row.单价.toFixed(2)}</td>
+                  <td className="px-2 py-1 font-mono">{row.单价.toFixed(4)}</td>
                   <td className="px-2 py-1">{row.数量}</td>
                   <td className="px-2 py-1 font-mono text-blue-600">{row.金额.toFixed(2)}</td>
                   <td className="px-2 py-1 text-gray-500">{row.已送货数量}</td>
@@ -639,8 +676,9 @@ export default function SalesOrdersPage() {
         searchPlaceholder="搜索 单号 / 客户名称 / 制单人 / 业务员 / 备注..."
         onSearch={setSearch}
         actions={[
-          { label: '新建销售单', icon: '＋', variant: 'primary' as const, onClick: () => { setEditingItem({ 单号: generateSalesOrderNo() }); setEditingItems([]); setModalOpen(true); } },
+          { label: '新建销售单', icon: '＋', variant: 'primary' as const, onClick: async () => { const no = await generateNextSalesOrderNo(); setEditingItem({ 单号: no }); setEditingItems([]); setModalOpen(true); } },
           { label: '导入CSV', icon: '↓', variant: 'default' as const, onClick: () => setImportModalOpen(true) },
+          { label: '导出CSV模版', icon: '↓', variant: 'default' as const, onClick: () => exportCsvTemplate(['单号', '客户名称', '日期', '合同金额', '已收款', '未收款项', '收款状态', '送货状态', '制单人', '业务员', '备注'], '销售订单') },
           { label: '导出CSV', icon: '↑', variant: 'default' as const, onClick: () => {
             const csv = ['单号,客户名称,日期,合同金额,已送货,未收款项,已收款,收款状态,送货状态,开票状态,制单人,业务员,计划收款日期,备注',
               ...filtered.map(s => `${s.单号},${s.客户名称},${s.日期},${s.合同金额},${s.已送货},${s.未收款项 || 0},${s.已收款},${s.收款状态},${s.送货状态},${s.开票状态 || '未开票'},${s.制单人},${s.业务员},${s.计划收款日期 || ''},${s.备注 || ''}`)].join('\n');
@@ -648,7 +686,8 @@ export default function SalesOrdersPage() {
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a'); a.href = url; a.download = `销售订单_${new Date().toISOString().slice(0,10)}.csv`; a.click();
             URL.revokeObjectURL(url);
-          } },
+          }
+ },
         ]}
         tabs={tabs}
       />
@@ -729,7 +768,7 @@ export default function SalesOrdersPage() {
                           <span className="text-gray-500">×{row.数量}{row.单位}</span>
                         </div>
                         <div className="flex justify-between mt-1 text-gray-400">
-                          <span>单价 ¥{row.单价.toFixed(2)}</span>
+                          <span>单价 ¥{row.单价.toFixed(4)}</span>
                           <span className="text-blue-600">¥{row.金额.toFixed(2)}</span>
                         </div>
                       </div>
@@ -779,7 +818,7 @@ export default function SalesOrdersPage() {
                     <div key={p.id} className="border rounded p-2 text-xs">
                       <div className="flex justify-between font-medium mb-1">
                         <span className="text-blue-600 font-mono">{p.单号}</span>
-                        <span className="text-green-600 font-semibold">+¥{p.收款金额.toLocaleString()}</span>
+                        <span className="text-green-600 font-semibold">+¥{p.收款金额?.toLocaleString()}</span>
                       </div>
                       <div className="grid grid-cols-2 gap-1 text-gray-500">
                         <div>日期：{p.收款日期}</div>
@@ -804,12 +843,12 @@ export default function SalesOrdersPage() {
                     <div key={inv.id} className="border rounded p-2 text-xs">
                       <div className="flex justify-between font-medium mb-1">
                         <span className="text-blue-600 font-mono">{inv.单号}</span>
-                        <span className="text-orange-600 font-semibold">¥{inv.金额.toLocaleString()}</span>
+                        <span className="text-orange-600 font-semibold">¥{inv.金额?.toLocaleString()}</span>
                       </div>
                       <div className="grid grid-cols-2 gap-1 text-gray-500">
                         <div>发票号：{inv.发票号}</div>
                         <div>税率：{(inv.税率 * 100).toFixed(0)}%</div>
-                        <div>税额：¥{inv.税额.toLocaleString()}</div>
+                        <div>税额：¥{inv.税额?.toLocaleString()}</div>
                         <div>状态：{inv.状态}</div>
                         <div>开票日期：{inv.开票日期}</div>
                         <div>制单：{inv.制单人}</div>

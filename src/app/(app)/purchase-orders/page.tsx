@@ -8,6 +8,7 @@ import PurchasePrintTemplate from '@/components/PurchasePrintTemplate';
 import CsvImportModal from '@/components/CsvImportModal';
 import { PurchaseOrder, PurchaseOrderItem, Product, ReceivingOrder, PaymentMade, PurchaseInvoice } from '@/lib/types';
 import { PurchaseOrderRepo, PurchaseOrderItemRepo, ProductRepo, WarehouseRepo, ReceivingOrderRepo, ReceivingOrderItemRepo, PaymentMadeRepo, PurchaseInvoiceRepo, VendorRepo } from '@/lib/repo';
+import { exportCsvTemplate } from '@/lib/csvExport';
 
 function generatePurchaseOrderNo(): string {
   const today = new Date();
@@ -74,12 +75,13 @@ function OrderItemsEditor({ rows, onChange }: { rows: OrderItemRow[]; onChange: 
     if (field === '产品id') {
       const prod = products.find(p => p.id === value);
       if (prod) {
-        row.产品名称 = prod.name;
-        row.物料编码 = prod.code;
-        row.规格 = prod.spec;
-        row.单位 = prod.unit;
-        row.单价 = prod.purchasePrice;
-        row.金额 = prod.purchasePrice * row.数量;
+        // 处理产品名称字段（可能是 name, productName 或 产品名称）
+        row.产品名称 = (prod as any).productName || (prod as any)['产品名称'] || prod.name;
+        row.物料编码 = (prod as any).code || prod.code;
+        row.规格 = (prod as any).spec || (prod as any)['规格型号'] || prod.spec;
+        row.单位 = (prod as any).unit || prod.unit;
+        row.单价 = (prod as any).purchasePrice || (prod as any)['进价'] || prod.purchasePrice;
+        row.金额 = row.单价 * row.数量;
       }
     }
     if (field === '单价' || field === '数量') {
@@ -129,7 +131,7 @@ function OrderItemsEditor({ rows, onChange }: { rows: OrderItemRow[]; onChange: 
                     >
                       <option value="">请选择产品</option>
                       {products.map(p => (
-                        <option key={p.id} value={p.id}>{p.name} ({p.code})</option>
+                        <option key={p.id} value={p.id}>{(p as any).productName || (p as any)['产品名称'] || p.name} ({(p as any).code || p.code})</option>
                       ))}
                     </select>
                   </td>
@@ -137,7 +139,7 @@ function OrderItemsEditor({ rows, onChange }: { rows: OrderItemRow[]; onChange: 
                   <td className="px-1 py-1 text-gray-600">{row.规格}</td>
                   <td className="px-1 py-1 text-gray-600">{row.单位}</td>
                   <td className="px-1 py-1">
-                    <input type="number" step="0.01" value={row.单价 || ''}
+                    <input type="number" step="0.0001" value={row.单价 || ''}
                       onChange={e => updateRow(idx, '单价', parseFloat(e.target.value) || 0)}
                       className="w-20 border border-gray-300 rounded px-1 py-0.5 text-xs focus:border-blue-500 focus:outline-none" />
                   </td>
@@ -569,6 +571,7 @@ export default function PurchaseOrdersPage() {
         actions={[
           { label: '新建采购单', icon: '＋', variant: 'primary' as const, onClick: () => { setEditingItem({ 单号: generatePurchaseOrderNo() }); setEditingItems([]); setModalOpen(true); } },
           { label: '导入CSV', icon: '↓', variant: 'default' as const, onClick: () => setImportModalOpen(true) },
+          { label: '导出CSV模版', icon: '↓', variant: 'default' as const, onClick: () => exportCsvTemplate(['单号', '供应商名称', '日期', '合同金额', '已付款', '未付款', '付款状态', '收货状态', '制单人', '备注'], '采购订单') },
           { label: '导出CSV', icon: '↑', variant: 'default' as const, onClick: () => {
             const csv = ['单号,供应商名称,日期,合同金额,已收货,已付款,未付款,付款状态,收货状态,开票状态,制单人,业务员,收货地址,备注',
               ...filtered.map(p => `${p.单号},${p.供应商名称},${p.日期},${p.合同金额},${p.已收货},${p.已付款},${p.未付款 || 0},${p.付款状态},${p.收货状态},${p.开票状态 || '未开票'},${p.制单人},${p.业务员},${p.收货地址 || ''},${p.备注 || ''}`)].join('\n');
@@ -576,7 +579,8 @@ export default function PurchaseOrdersPage() {
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a'); a.href = url; a.download = `采购订单_${new Date().toISOString().slice(0,10)}.csv`; a.click();
             URL.revokeObjectURL(url);
-          } },
+          }
+ },
         ]} />
       <div className="flex-1 overflow-auto bg-white">
         <OrderTable columns={tableColumns} data={filtered} loading={loading} emptyMessage="暂无采购订单"
@@ -642,7 +646,7 @@ export default function PurchaseOrdersPage() {
                           <span className="text-gray-500">×{row.数量}{row.单位}</span>
                         </div>
                         <div className="flex justify-between mt-1 text-gray-400">
-                          <span>单价 ¥{row.单价.toFixed(2)}</span>
+                          <span>单价 ¥{row.单价.toFixed(4)}</span>
                           <span className="text-blue-600">¥{row.金额.toFixed(2)}</span>
                         </div>
                       </div>
@@ -692,7 +696,7 @@ export default function PurchaseOrdersPage() {
                     <div key={p.id} className="border rounded p-2 text-xs">
                       <div className="flex justify-between font-medium mb-1">
                         <span className="text-blue-600 font-mono">{p.单号}</span>
-                        <span className="text-red-600 font-semibold">-¥{p.付款金额.toLocaleString()}</span>
+                        <span className="text-red-600 font-semibold">-¥{p.付款金额?.toLocaleString()}</span>
                       </div>
                       <div className="grid grid-cols-2 gap-1 text-gray-500">
                         <div>日期：{p.付款日期}</div>
@@ -715,12 +719,12 @@ export default function PurchaseOrdersPage() {
                     <div key={inv.id} className="border rounded p-2 text-xs">
                       <div className="flex justify-between font-medium mb-1">
                         <span className="text-blue-600 font-mono">{inv.单号}</span>
-                        <span className="text-orange-600 font-semibold">¥{inv.金额.toLocaleString()}</span>
+                        <span className="text-orange-600 font-semibold">¥{inv.金额?.toLocaleString()}</span>
                       </div>
                       <div className="grid grid-cols-2 gap-1 text-gray-500">
                         <div>发票号：{inv.发票号}</div>
                         <div>税率：{(inv.税率 * 100).toFixed(0)}%</div>
-                        <div>税额：¥{inv.税额.toLocaleString()}</div>
+                        <div>税额：¥{inv.税额?.toLocaleString()}</div>
                         <div>状态：{inv.状态}</div>
                         <div>开票日期：{inv.开票日期}</div>
                         <div>制单：{inv.制单人}</div>
