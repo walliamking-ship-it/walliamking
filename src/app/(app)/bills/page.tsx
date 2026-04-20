@@ -89,13 +89,15 @@ function BillFormModal({ open, onClose, onSave, initial, customers, salesOrders 
 
   const customerOrders = salesOrders.filter(s => s.客户名称 === form.客户名称);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.客户名称) { alert('请选择客户'); return; }
-    onSave({
-      ...form, 关联销售订单ids: Array.from(selectedIds),
-      未收金额: form.应收金额 - form.已收金额,
-    } as Omit<Bill, 'id'>);
-    onClose();
+    try {
+      await onSave({
+        ...form, 关联销售订单ids: Array.from(selectedIds),
+        未收金额: form.应收金额 - form.已收金额,
+      } as Omit<Bill, 'id'>);
+      onClose();
+    } catch (e: any) { alert('保存失败: ' + (e?.message || '未知错误')); }
   };
 
   return (
@@ -124,7 +126,7 @@ function BillFormModal({ open, onClose, onSave, initial, customers, salesOrders 
               <select value={form.客户名称} onChange={e => handleCustomerChange(e.target.value)}
                 className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none bg-white">
                 <option value="">请选择客户</option>
-                {customers.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                {customers.map(c => <option key={c.id} value={c.客户名称}>{c.客户名称}</option>)}
               </select>
             </div>
             {form.账单类型 === '月度账单' && (
@@ -234,7 +236,7 @@ export default function BillsPage() {
       ]);
       setData(bills);
       setSalesOrders(orders);
-      setCustomers(custs.map(c => ({ id: c.id, name: c.name })));
+      setCustomers(custs.map(c => ({ id: c.id, name: c.客户名称 })));
     } finally { setLoading(false); }
   };
   useEffect(() => { loadData(); }, []);
@@ -293,7 +295,7 @@ export default function BillsPage() {
           <select value={customerFilter} onChange={e => setCustomerFilter(e.target.value)}
             className="border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 focus:outline-none bg-white">
             <option value="">全部客户</option>
-            {customers.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+            {customers.map(c => <option key={c.id} value={c.客户名称}>{c.客户名称}</option>)}
           </select>
           {customerFilter && <button onClick={() => setCustomerFilter('')} className="text-xs text-blue-600 hover:underline">清除筛选</button>}
         </div>

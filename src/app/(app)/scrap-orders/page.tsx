@@ -60,13 +60,17 @@ function ScrapOrderFormModal({ open, onClose, onSave, initial, inventory, wareho
 
   if (!open) return null;
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.仓库 || !form.产品名称 || form.报废数量 <= 0) {
       alert('请填写仓库、产品和报废数量');
       return;
     }
-    onSave(form as Omit<ScrapOrder, 'id'>);
-    onClose();
+    try {
+      await onSave(form as Omit<ScrapOrder, 'id'>);
+      onClose();
+    } catch (e: any) {
+      alert('保存失败: ' + (e?.message || '未知错误'));
+    }
   };
 
   return (

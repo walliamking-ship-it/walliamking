@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     // 同时设置HTTP-only cookie（用于服务端路由保护）
     response.cookies.set('erp_token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: false, // HTTP环境不使用Secure标志
       sameSite: 'lax',
       maxAge: 60 * 60 * 8, // 8小时
       path: '/',

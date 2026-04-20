@@ -6,6 +6,7 @@ import OrderTable, { Column } from '@/components/OrderTable';
 import CsvImportModal from '@/components/CsvImportModal';
 import { Workstation } from '@/lib/types';
 import { WorkstationRepo } from '@/lib/repo';
+import { exportCsvTemplate } from '@/lib/csvExport';
 
 import StatusBadge, { MoneyCell } from '@/components/StatusBadge';
 
@@ -69,7 +70,7 @@ function FormModal({ open, onClose, onSave, initial }: { open: boolean; onClose:
   const [form, setForm] = useState<Partial<Workstation>>(initial || {});
   useEffect(() => { setForm(initial || {}); }, [initial, open]);
   if (!open) return null;
-  const handleSave = () => { if (!form.name) { alert('请填写工序名称'); return; } onSave(form); onClose(); };
+  const handleSave = async () => { if (!form.name) { alert('请填写工序名称'); return; } try { await onSave(form); onClose(); } catch (e: any) { alert('保存失败: ' + (e?.message || '未知错误')); } };
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-xl max-h-[90vh] overflow-auto">
@@ -127,6 +128,7 @@ export default function WorkstationsPage() {
         actions={[
           { label: '新建工序', icon: '＋', variant: 'primary' as const, onClick: () => { setEditingItem({}); setModalOpen(true); } },
           { label: '导入CSV', icon: '↓', variant: 'default' as const, onClick: () => setImportModalOpen(true) },
+          { label: '导出CSV模版', icon: '↓', variant: 'default' as const, onClick: () => exportCsvTemplate(['工序名称', '顺序', '是否委外', '备注'], '工序') },
           { label: '导出CSV', icon: '↑', variant: 'default' as const, onClick: () => {
             const csv = ['工序名称,顺序,是否委外,备注',
               ...filtered.map(w => `${w.name},${w.sequence},${w.outsource ? '是' : '否'},${w.remark}`)].join('\n');
@@ -134,7 +136,8 @@ export default function WorkstationsPage() {
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a'); a.href = url; a.download = `工序列表_${new Date().toISOString().slice(0,10)}.csv`; a.click();
             URL.revokeObjectURL(url);
-          } },
+          }
+ },
         ]} />
       <div className="flex-1 overflow-auto bg-white">
         <OrderTable columns={tableColumns} data={filtered} loading={loading} emptyMessage="暂无工序数据" onRowClick={item => handleEdit(item)} />

@@ -65,15 +65,15 @@ export default function DashboardPage() {
   }, []);
 
   // 计算汇总数据
-  const totalContract = salesOrders.reduce((s, o) => s + (o.合同金额 || 0), 0);
-  const totalUnpaid = salesOrders.reduce((s, o) => s + (o.未收款项 || 0), 0);
-  const totalPaid = salesOrders.reduce((s, o) => s + (o.已收款 || 0), 0);
+  const totalContract = salesOrders.reduce((s, o) => s + Number(o.合同金额 || 0), 0);
+  const totalUnpaid = salesOrders.reduce((s, o) => s + Number(o.未收款项 || 0), 0);
+  const totalPaid = salesOrders.reduce((s, o) => s + Number(o.已收款 || 0), 0);
   const unpaidOrders = salesOrders.filter(o => o.未收款项 > 0).length;
   const undeliveredOrders = salesOrders.filter(o => o.送货状态 === '未送货' || o.送货状态 === '部分送货').length;
 
   // 采购
-  const totalPurchase = purchaseOrders.reduce((s, o) => s + (o.合同金额 || 0), 0);
-  const totalUnpaidPO = purchaseOrders.reduce((s, o) => s + (o.未付款 || 0), 0);
+  const totalPurchase = purchaseOrders.reduce((s, o) => s + Number(o.合同金额 || 0), 0);
+  const totalUnpaidPO = purchaseOrders.reduce((s, o) => s + Number(o.未付款 || 0), 0);
 
   // 库存预警
   const lowStock = inventory.filter(i => i.当前库存 <= i.安全库存 && i.当前库存 > 0);
@@ -146,16 +146,16 @@ export default function DashboardPage() {
       <div className="flex-1 p-6 space-y-6">
         {/* KPI卡片 */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card title="合同总额" value={`¥${totalContract.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}`} sub={`共 ${salesOrders.length} 张订单`} icon="📋" color="blue" />
-          <Card title="应收款项" value={`¥${totalUnpaid.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}`} sub={`${unpaidOrders} 张订单未收完`} icon="💰" color="red" />
-          <Card title="已收款" value={`¥${totalPaid.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}`} sub="本月回款" icon="✅" color="green" />
+          <Card title="合同总额" value={`¥${totalContract?.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}`} sub={`共 ${salesOrders.length} 张订单`} icon="📋" color="blue" />
+          <Card title="应收款项" value={`¥${totalUnpaid?.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}`} sub={`${unpaidOrders} 张订单未收完`} icon="💰" color="red" />
+          <Card title="已收款" value={`¥${totalPaid?.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}`} sub="本月回款" icon="✅" color="green" />
           <Card title="未完成送货" value={undeliveredOrders} sub="张订单待送货" icon="🚚" color="orange" />
         </div>
 
         {/* 采购 + 生产 */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card title="采购总额" value={`¥${totalPurchase.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}`} sub={`共 ${purchaseOrders.length} 张采购单`} icon="📦" color="purple" />
-          <Card title="应付账款" value={`¥${totalUnpaidPO.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}`} sub="待付款" icon="💸" color="orange" />
+          <Card title="采购总额" value={`¥${totalPurchase?.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}`} sub={`共 ${purchaseOrders.length} 张采购单`} icon="📦" color="purple" />
+          <Card title="应付账款" value={`¥${totalUnpaidPO?.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}`} sub="待付款" icon="💸" color="orange" />
           <Card title="生产中" value={inProduction} sub="张施工单" icon="🔨" color="blue" />
           <Card title="待审核报工" value={pendingReports.length} sub="条报工记录" icon="📝" color="gray" />
         </div>
@@ -195,7 +195,7 @@ export default function DashboardPage() {
                         style={{ width: `${Math.min(100, (d.amount / (monthlyData[monthlyData.length-1]?.amount || 1)) * 100)}%` }}
                       />
                       <span className="absolute inset-0 flex items-center justify-center text-xs font-medium text-gray-700">
-                        ¥{d.amount.toLocaleString()}
+                        ¥{d.amount?.toLocaleString()}
                       </span>
                     </div>
                   </div>
@@ -263,7 +263,7 @@ export default function DashboardPage() {
                       {idx + 1}
                     </span>
                     <span className="flex-1 text-sm text-gray-700 truncate">{name}</span>
-                    <span className="text-sm font-semibold text-blue-600">¥{Number(amount).toLocaleString('zh-CN', { minimumFractionDigits: 2 })}</span>
+                    <span className="text-sm font-semibold text-blue-600">¥{Number(amount)?.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}</span>
                   </div>
                 ))}
               </div>

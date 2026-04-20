@@ -5,6 +5,7 @@ import PageHeader from '@/components/PageHeader';
 import OrderTable, { Column } from '@/components/OrderTable';
 import { PaymentMade, PurchaseOrder, Vendor } from '@/lib/types';
 import { PaymentMadeRepo, PurchaseOrderRepo, VendorRepo } from '@/lib/repo';
+import { exportCsvTemplate } from '@/lib/csvExport';
 
 function generatePaymentNo(): string {
   const today = new Date();
@@ -57,11 +58,13 @@ function PaymentMadeFormModal({ open, onClose, onSave, initial, purchaseOrders, 
 
   if (!open) return null;
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.供应商名称) { alert('请填写供应商名称'); return; }
     if (selectedIds.size === 0) { alert('请至少选择一个采购订单'); return; }
-    onSave({ ...form, 关联采购订单ids: Array.from(selectedIds) } as Omit<PaymentMade, 'id'>);
-    onClose();
+    try {
+      await onSave({ ...form, 关联采购订单ids: Array.from(selectedIds) } as Omit<PaymentMade, 'id'>);
+      onClose();
+    } catch (e: any) { alert('保存失败: ' + (e?.message || '未知错误')); }
   };
 
   return (
@@ -87,7 +90,7 @@ function PaymentMadeFormModal({ open, onClose, onSave, initial, purchaseOrders, 
               <select value={form.供应商名称} onChange={e => updateField('供应商名称', e.target.value)}
                 className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none bg-white">
                 <option value="">请选择供应商</option>
-                {vendors.map(v => <option key={v.id} value={v.name}>{v.name}</option>)}
+                {vendors.map(v => <option key={v.id} value={v.供应商名称}>{v.供应商名称}</option>)}
               </select>
             </div>
             <div>
@@ -126,7 +129,7 @@ function PaymentMadeFormModal({ open, onClose, onSave, initial, purchaseOrders, 
                   <span className="font-mono text-blue-600">{po.单号}</span>
                   <span className="text-gray-500">{po.供应商名称}</span>
                   <span className="ml-auto text-right">
-                    <span className="text-gray-400 text-xs">欠{po.未付款.toFixed(2)}</span>
+                    <span className="text-gray-400 text-xs">欠{parseFloat(String(po.未付款||'0')).toFixed(2)}</span>
                   </span>
                 </label>
               ))}
@@ -240,6 +243,7 @@ export default function PaymentMadesPage() {
         onSearch={setSearch}
         actions={[
           { label: '新建付款单', icon: '＋', variant: 'primary' as const, onClick: () => { setEditingItem(undefined); setModalOpen(true); } },
+          { label: '导出CSV模版', icon: '↓', variant: 'default' as const, onClick: () => exportCsvTemplate(['单号', '供应商名称', '关联采购订单号', '付款日期', '付款方式', '付款金额', '状态', '备注'], '付款单') },
         ]}
       />
       <div className="flex-1 overflow-auto bg-white">

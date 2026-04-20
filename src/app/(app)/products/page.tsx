@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import PageHeader from '@/components/PageHeader';
 import OrderTable, { Column } from '@/components/OrderTable';
 import CsvImportModal from '@/components/CsvImportModal';
 import { Product } from '@/lib/types';
 import { ProductRepo } from '@/lib/repo';
+import { exportCsvTemplate } from '@/lib/csvExport';
 
 const columns: Column<Product>[] = [
   { key: 'code', label: '货号', sortable: true },
@@ -91,22 +92,30 @@ function FormModal({ open, onClose, onSave, initial, existingProducts }: {
 }) {
   const [form, setForm] = useState<Partial<Product>>(initial || {});
 
+  const prevOpenRef = useRef(false);
   useEffect(() => {
-    if (open) {
+    if (open && !prevOpenRef.current) {
       if (initial?.id) {
         setForm(initial);
       } else {
         setForm({ code: generateProductCode(existingProducts), name: '', spec: '', unit: '', category: '', customer: '', purchasePrice: 0, salePrice: 0, remark: '' });
       }
+    } else if (open && initial?.id) {
+      setForm(initial);
     }
-  }, [initial, open, existingProducts]);
+    prevOpenRef.current = open;
+  }, [open, initial]);
 
   if (!open) return null;
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.name) { alert('请填写产品名称'); return; }
-    onSave(form);
-    onClose();
+    try {
+      await onSave(form);
+      onClose();
+    } catch (e: any) {
+      alert('保存失败: ' + (e?.message || '未知错误'));
+    }
   };
 
   return (
@@ -210,6 +219,7 @@ export default function ProductsPage() {
         actions={[
           { label: '新建产品', icon: '＋', variant: 'primary' as const, onClick: () => { setEditingItem({}); setModalOpen(true); } },
           { label: '导入CSV', icon: '↓', variant: 'default' as const, onClick: () => setImportModalOpen(true) },
+          { label: '导出CSV模版', icon: '↓', variant: 'default' as const, onClick: () => exportCsvTemplate(['货号', '产品名称', '规格型号', '单位', '分类', '客户', '进价', '售价', '备注'], '产品') },
           { label: '导出CSV', icon: '↑', variant: 'default' as const, onClick: () => {
             const csv = ['货号,产品名称,规格型号,单位,分类,客户,进价,售价,备注',
               ...filtered.map(p => `${p.code},${p.name},${p.spec},${p.unit},${p.category},${p.customer},${p.purchasePrice},${p.salePrice},${p.remark}`)].join('\n');
@@ -217,7 +227,8 @@ export default function ProductsPage() {
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a'); a.href = url; a.download = `产品列表_${new Date().toISOString().slice(0,10)}.csv`; a.click();
             URL.revokeObjectURL(url);
-          } },
+          }
+ },
         ]}
       />
 

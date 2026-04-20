@@ -6,6 +6,7 @@ import OrderTable, { Column } from '@/components/OrderTable';
 import StatusBadge, { DateCell } from '@/components/StatusBadge';
 import { ReceivingOrder, ReceivingOrderItem, PurchaseOrder, PurchaseOrderItem, Warehouse } from '@/lib/types';
 import { ReceivingOrderRepo, ReceivingOrderItemRepo, PurchaseOrderRepo, PurchaseOrderItemRepo, WarehouseRepo } from '@/lib/repo';
+import { exportCsvTemplate } from '@/lib/csvExport';
 
 const columns: Column<ReceivingOrder>[] = [
   { key: '单号', label: '单号', sortable: true },
@@ -88,7 +89,7 @@ function ReceivingOrderForm({ value, onChange, purchaseOrders }: {
         <select value={value.收货仓库 || ''} onChange={e => onChange('收货仓库', e.target.value)}
           className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none bg-white">
           <option value="">请选择仓库</option>
-          {warehouses.map(w => <option key={w.id} value={w.name}>{w.name}</option>)}
+          {warehouses.map(w => <option key={w.id} value={w.仓库}>{w.仓库}</option>)}
         </select>
       </div>
       <div>
@@ -253,7 +254,7 @@ function FormModal({ open, onClose, onSave, initial, purchaseOrders }: {
 
   if (!open) return null;
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.采购订单id || !form.收货日期 || !form.收货人) {
       alert('请填写必填项：关联采购订单、收货日期、收货人');
       return;
@@ -262,8 +263,10 @@ function FormModal({ open, onClose, onSave, initial, purchaseOrders }: {
       alert('请至少选择一项产品');
       return;
     }
-    onSave(form, items);
-    onClose();
+    try {
+      await onSave(form, items);
+      onClose();
+    } catch (e: any) { alert('保存失败: ' + (e?.message || '未知错误')); }
   };
 
   return (
@@ -478,6 +481,7 @@ export default function ReceivingOrdersPage() {
         onSearch={setSearch}
         actions={[
           { label: '新建收货单', icon: '＋', variant: 'primary' as const, onClick: () => { setEditingItem({}); setModalOpen(true); } },
+          { label: '导出CSV模版', icon: '↓', variant: 'default' as const, onClick: () => exportCsvTemplate(['单号', '关联采购订单号', '供应商名称', '收货日期', '收货地址', '仓库', '备注', '状态'], '收货单') },
         ]}
       />
 

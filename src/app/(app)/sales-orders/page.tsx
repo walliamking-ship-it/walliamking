@@ -154,7 +154,7 @@ function OrderItemsEditor({ rows, onChange }: { rows: OrderItemRow[]; onChange: 
                     >
                       <option value="">请选择产品</option>
                       {products.map(p => (
-                        <option key={p.id} value={p.id}>{(p as any).productName || (p as any)['产品名称'] || p.name} ({(p as any).code || p.code})</option>
+                        <option key={p.id} value={p.id}>{p.产品名称} ({p.货号})</option>
                       ))}
                     </select>
                   </td>
@@ -217,7 +217,7 @@ function SalesOrderForm({ value, onChange }: { value: Partial<SalesOrder>; onCha
         <select value={value.客户名称 || ''} onChange={e => onChange('客户名称', e.target.value)}
           className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none bg-white" required>
           <option value="">请选择客户</option>
-          {customers.map(c => <option key={c.id} value={c.name}>{c.name} ({c.code})</option>)}
+          {customers.map(c => <option key={c.id} value={c.客户名称}>{c.客户名称} ({c.客户编号})</option>)}
         </select>
       </div>
       <div>
@@ -365,7 +365,7 @@ export default function SalesOrdersPage() {
   const [showBatchConfirm, setShowBatchConfirm] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [orderItemsMap, setOrderItemsMap] = useState<Record<string, SalesOrderItem[]>>({});
-  const [warehouses, setWarehouses] = useState<{id: string; name: string}[]>([]);
+  const [warehouses, setWarehouses] = useState<{id: string; 仓库: string}[]>([]);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [allDeliveryOrders, setAllDeliveryOrders] = useState<DeliveryOrder[]>([]);
   const [allPaymentReceipts, setAllPaymentReceipts] = useState<PaymentReceipt[]>([]);
@@ -387,7 +387,7 @@ export default function SalesOrdersPage() {
     }
   };
 
-  useEffect(() => { loadData(); WarehouseRepo.findAll().then(ws => setWarehouses(ws.map(w => ({ id: w.id, name: w.name })))); ProductRepo.findAll().then(setAllProducts); }, []);
+  useEffect(() => { loadData(); WarehouseRepo.findAll().then(ws => setWarehouses(ws.map(w => ({ id: w.id, 仓库: w.仓库 })))); ProductRepo.findAll().then(setAllProducts); }, []);
 
   // 加载关联数据（当选中订单时）
   useEffect(() => {
@@ -965,7 +965,7 @@ export default function SalesOrdersPage() {
                 <select value={deliveryForm.发货仓库} onChange={e => setDeliveryForm(f => ({ ...f, 发货仓库: e.target.value }))}
                   className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm bg-white">
                   <option value="">请选择仓库</option>
-                  {warehouses.map(w => <option key={w.id} value={w.name}>{w.name}</option>)}
+                  {warehouses.map(w => <option key={w.id} value={w.仓库}>{w.仓库}</option>)}
                 </select>
               </div>
               <div>

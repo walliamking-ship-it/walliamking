@@ -6,6 +6,7 @@ import OrderTable, { Column } from '@/components/OrderTable';
 import StatusBadge, { MoneyCell, DateCell } from '@/components/StatusBadge';
 import { SalesInvoice, PurchaseInvoice, InvoiceStatus, SalesOrder, PurchaseOrder, Customer, Vendor } from '@/lib/types';
 import { SalesInvoiceRepo, PurchaseInvoiceRepo, SalesOrderRepo, PurchaseOrderRepo, CustomerRepo, VendorRepo } from '@/lib/repo';
+import { exportCsvTemplate } from '@/lib/csvExport';
 
 type InvoiceType = 'sales' | 'purchase';
 
@@ -20,9 +21,12 @@ interface SalesInvoiceForm {
   单号: string;
   发票号: string;
   开票日期: string;
+  到期日期: string;              // ⚡ 新增
   客户名称: string;
+  关联销售订单号: string;       // ⚡ 新增：单选显示用
   关联销售订单ids: string[];
   金额: number;
+  已收金额: number;               // ⚡ 新增
   税率: number;
   税额: number;
   状态: InvoiceStatus;
@@ -34,9 +38,12 @@ interface PurchaseInvoiceForm {
   单号: string;
   发票号: string;
   开票日期: string;
+  到期日期: string;              // ⚡ 新增
   供应商名称: string;
+  关联采购订单号: string;       // ⚡ 新增：单选显示用
   关联采购订单ids: string[];
   金额: number;
+  已付金额: number;               // ⚡ 新增
   税率: number;
   税额: number;
   状态: InvoiceStatus;
@@ -62,9 +69,9 @@ function SalesInvoiceFormModal({ open, onClose, onSave, initial, salesOrders, cu
   customers: Customer[];
 }) {
   const [form, setForm] = useState<SalesInvoiceForm>({
-    单号: '', 发票号: '', 开票日期: '', 客户名称: '',
-    关联销售订单ids: [], 金额: 0, 税率: 0.13, 税额: 0,
-    状态: '未开', 备注: '', 制单人: '李紫璘',
+    单号: '', 发票号: '', 开票日期: '', 到期日期: '', 客户名称: '',
+    关联销售订单号: '', 关联销售订单ids: [], 金额: 0, 已收金额: 0,
+    税率: 0.13, 税额: 0, 状态: '未开', 备注: '', 制单人: '李紫璘',
   });
 
   useEffect(() => {
@@ -72,27 +79,33 @@ function SalesInvoiceFormModal({ open, onClose, onSave, initial, salesOrders, cu
       if (initial?.id) {
         setForm({
           单号: initial.单号, 发票号: initial.发票号, 开票日期: initial.开票日期,
-          客户名称: initial.客户名称, 关联销售订单ids: initial.关联销售订单ids,
-          金额: initial.金额, 税率: initial.税率, 税额: initial.税额,
+          到期日期: initial.到期日期 || '',
+          客户名称: initial.客户名称,
+          关联销售订单号: initial.关联销售订单号 || '',
+          关联销售订单ids: initial.关联销售订单ids || [],
+          金额: initial.金额, 已收金额: initial.已收金额 || 0, 税率: initial.税率, 税额: initial.税额,
           状态: initial.状态, 备注: initial.备注, 制单人: initial.制单人,
         });
       } else {
-        setForm({ 单号: generateInvoiceNo(), 发票号: '', 开票日期: new Date().toISOString().slice(0,10), 客户名称: '', 关联销售订单ids: [], 金额: 0, 税率: 0.13, 税额: 0, 状态: '未开', 备注: '', 制单人: '李紫璘' });
+        setForm({ 单号: generateInvoiceNo(), 发票号: '', 开票日期: new Date().toISOString().slice(0,10), 到期日期: '', 客户名称: '', 关联销售订单号: '', 关联销售订单ids: [], 金额: 0, 已收金额: 0, 税率: 0.13, 税额: 0, 状态: '未开', 备注: '', 制单人: '李紫璘' });
       }
     }
   }, [open, initial]);
 
   if (!open) return null;
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.发票号 || !form.客户名称) { alert('请填写发票号和客户名称'); return; }
-    onSave({
-      单号: form.单号, 发票号: form.发票号, 开票日期: form.开票日期,
-      客户名称: form.客户名称, 关联销售订单ids: form.关联销售订单ids,
-      金额: form.金额, 税率: form.税率, 税额: form.税额,
-      状态: form.状态, 备注: form.备注, 制单人: form.制单人,
-    });
-    onClose();
+    try {
+      await onSave({
+        单号: form.单号, 发票号: form.发票号, 开票日期: form.开票日期,
+        到期日期: form.到期日期, 客户名称: form.客户名称,
+        关联销售订单号: form.关联销售订单号, 关联销售订单ids: form.关联销售订单ids,
+        金额: form.金额, 已收金额: form.已收金额, 税率: form.税率, 税额: form.税额,
+        状态: form.状态, 备注: form.备注, 制单人: form.制单人,
+      });
+      onClose();
+    } catch (e: any) { alert('保存失败: ' + (e?.message || '未知错误')); }
   };
 
   const updateField = (k: keyof SalesInvoiceForm, v: any) => {
@@ -140,13 +153,23 @@ function SalesInvoiceFormModal({ open, onClose, onSave, initial, salesOrders, cu
               <select value={form.客户名称} onChange={e => updateField('客户名称', e.target.value)}
                 className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none bg-white">
                 <option value="">请选择客户</option>
-                {customers.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                {customers.map(c => <option key={c.id} value={c.客户名称}>{c.客户名称}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-0.5">金额（含税）</label>
               <input type="number" step="0.01" value={form.金额 || ''} onChange={e => updateField('金额', parseFloat(e.target.value) || 0)}
                 className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" placeholder="0.00" />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-0.5">已收金额</label>
+              <input type="number" step="0.01" value={form.已收金额 || ''} onChange={e => updateField('已收金额', parseFloat(e.target.value) || 0)}
+                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" placeholder="0.00" />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-0.5">未收金额</label>
+              <input type="number" step="0.01" value={form.金额 - (form.已收金额 || 0) || ''} readOnly
+                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm bg-gray-100" placeholder="自动计算" />
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-0.5">税率</label>
@@ -190,7 +213,7 @@ function SalesInvoiceFormModal({ open, onClose, onSave, initial, salesOrders, cu
                     onChange={() => toggleOrder(so.id)} className="w-3.5 h-3.5 rounded" />
                   <span className="font-mono text-blue-600">{so.单号}</span>
                   <span className="text-gray-500">{so.客户名称}</span>
-                  <span className="ml-auto text-gray-400">¥{so.合同金额.toFixed(2)}</span>
+                  <span className="ml-auto text-gray-400">¥{parseFloat(String(so.合同金额||'0')).toFixed(2)}</span>
                 </label>
               ))}
             </div>
@@ -218,9 +241,9 @@ function PurchaseInvoiceFormModal({ open, onClose, onSave, initial, purchaseOrde
   vendors: Vendor[];
 }) {
   const [form, setForm] = useState<PurchaseInvoiceForm>({
-    单号: '', 发票号: '', 开票日期: '', 供应商名称: '',
-    关联采购订单ids: [], 金额: 0, 税率: 0.13, 税额: 0,
-    状态: '未开', 备注: '', 制单人: '李紫璘',
+    单号: '', 发票号: '', 开票日期: '', 到期日期: '', 供应商名称: '',
+    关联采购订单号: '', 关联采购订单ids: [], 金额: 0, 已付金额: 0,
+    税率: 0.13, 税额: 0, 状态: '未开', 备注: '', 制单人: '李紫璘',
   });
 
   useEffect(() => {
@@ -228,27 +251,33 @@ function PurchaseInvoiceFormModal({ open, onClose, onSave, initial, purchaseOrde
       if (initial?.id) {
         setForm({
           单号: initial.单号, 发票号: initial.发票号, 开票日期: initial.开票日期,
-          供应商名称: initial.供应商名称, 关联采购订单ids: initial.关联采购订单ids,
-          金额: initial.金额, 税率: initial.税率, 税额: initial.税额,
+          到期日期: initial.到期日期 || '',
+          供应商名称: initial.供应商名称,
+          关联采购订单号: initial.关联采购订单号 || '',
+          关联采购订单ids: initial.关联采购订单ids || [],
+          金额: initial.金额, 已付金额: initial.已付金额 || 0, 税率: initial.税率, 税额: initial.税额,
           状态: initial.状态, 备注: initial.备注, 制单人: initial.制单人,
         });
       } else {
-        setForm({ 单号: generateInvoiceNo(), 发票号: '', 开票日期: new Date().toISOString().slice(0,10), 供应商名称: '', 关联采购订单ids: [], 金额: 0, 税率: 0.13, 税额: 0, 状态: '未开', 备注: '', 制单人: '李紫璘' });
+        setForm({ 单号: generateInvoiceNo(), 发票号: '', 开票日期: new Date().toISOString().slice(0,10), 到期日期: '', 供应商名称: '', 关联采购订单号: '', 关联采购订单ids: [], 金额: 0, 已付金额: 0, 税率: 0.13, 税额: 0, 状态: '未开', 备注: '', 制单人: '李紫璘' });
       }
     }
   }, [open, initial]);
 
   if (!open) return null;
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.发票号 || !form.供应商名称) { alert('请填写发票号和供应商名称'); return; }
-    onSave({
-      单号: form.单号, 发票号: form.发票号, 开票日期: form.开票日期,
-      供应商名称: form.供应商名称, 关联采购订单ids: form.关联采购订单ids,
-      金额: form.金额, 税率: form.税率, 税额: form.税额,
-      状态: form.状态, 备注: form.备注, 制单人: form.制单人,
-    });
-    onClose();
+    try {
+      await onSave({
+        单号: form.单号, 发票号: form.发票号, 开票日期: form.开票日期,
+        到期日期: form.到期日期, 供应商名称: form.供应商名称,
+        关联采购订单号: form.关联采购订单号, 关联采购订单ids: form.关联采购订单ids,
+        金额: form.金额, 已付金额: form.已付金额, 税率: form.税率, 税额: form.税额,
+        状态: form.状态, 备注: form.备注, 制单人: form.制单人,
+      });
+      onClose();
+    } catch (e: any) { alert('保存失败: ' + (e?.message || '未知错误')); }
   };
 
   const updateField = (k: keyof PurchaseInvoiceForm, v: any) => {
@@ -291,17 +320,32 @@ function PurchaseInvoiceFormModal({ open, onClose, onSave, initial, purchaseOrde
                 className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" />
             </div>
             <div>
+              <label className="block text-xs text-gray-500 mb-0.5">到期日期</label>
+              <input type="date" value={form.到期日期} onChange={e => updateField('到期日期', e.target.value)}
+                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" />
+            </div>
+            <div>
               <label className="block text-xs text-gray-500 mb-0.5">供应商名称 <span className="text-red-500">*</span></label>
               <select value={form.供应商名称} onChange={e => updateField('供应商名称', e.target.value)}
                 className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none bg-white">
                 <option value="">请选择供应商</option>
-                {vendors.map(v => <option key={v.id} value={v.name}>{v.name}</option>)}
+                {vendors.map(v => <option key={v.id} value={v.供应商名称}>{v.供应商名称}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-0.5">金额（含税）</label>
               <input type="number" step="0.01" value={form.金额 || ''} onChange={e => updateField('金额', parseFloat(e.target.value) || 0)}
                 className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" placeholder="0.00" />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-0.5">已付金额</label>
+              <input type="number" step="0.01" value={form.已付金额 || ''} onChange={e => updateField('已付金额', parseFloat(e.target.value) || 0)}
+                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" placeholder="0.00" />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-0.5">未付金额</label>
+              <input type="number" step="0.01" value={form.金额 - (form.已付金额 || 0) || ''} readOnly
+                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm bg-gray-100" placeholder="自动计算" />
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-0.5">税率</label>
@@ -344,7 +388,7 @@ function PurchaseInvoiceFormModal({ open, onClose, onSave, initial, purchaseOrde
                     onChange={() => toggleOrder(po.id)} className="w-3.5 h-3.5 rounded" />
                   <span className="font-mono text-blue-600">{po.单号}</span>
                   <span className="text-gray-500">{po.供应商名称}</span>
-                  <span className="ml-auto text-gray-400">¥{po.合同金额.toFixed(2)}</span>
+                  <span className="ml-auto text-gray-400">¥{parseFloat(String(po.合同金额||'0')).toFixed(2)}</span>
                 </label>
               ))}
             </div>
@@ -474,8 +518,12 @@ export default function InvoicesPage() {
     { key: '单号', label: '单号', sortable: true },
     { key: '发票号', label: '发票号', sortable: true },
     { key: '开票日期', label: '开票日期', sortable: true },
+    { key: '到期日期', label: '到期日期', sortable: true },
     { key: '客户名称', label: '客户名称', sortable: true },
+    { key: '关联销售订单号', label: '关联销售单号', sortable: true },
     { key: '金额', label: '金额', sortable: true },
+    { key: '已收金额', label: '已收', sortable: true },
+    { key: '未收金额', label: '未收', sortable: true },
     { key: '税率', label: '税率', sortable: true },
     { key: '税额', label: '税额', sortable: true },
     { key: '状态', label: '状态', sortable: true, render: (i: SalesInvoice) => <StatusTag status={i.状态} /> },
@@ -493,8 +541,12 @@ export default function InvoicesPage() {
     { key: '单号', label: '单号', sortable: true },
     { key: '发票号', label: '发票号', sortable: true },
     { key: '开票日期', label: '开票日期', sortable: true },
+    { key: '到期日期', label: '到期日期', sortable: true },
     { key: '供应商名称', label: '供应商名称', sortable: true },
+    { key: '关联采购订单号', label: '关联采购单号', sortable: true },
     { key: '金额', label: '金额', sortable: true },
+    { key: '已付金额', label: '已付', sortable: true },
+    { key: '未付金额', label: '未付', sortable: true },
     { key: '税率', label: '税率', sortable: true },
     { key: '税额', label: '税额', sortable: true },
     { key: '状态', label: '状态', sortable: true, render: (i: PurchaseInvoice) => <StatusTag status={i.状态} /> },
@@ -525,6 +577,7 @@ export default function InvoicesPage() {
             else setEditingPurchase(undefined);
             setModalOpen(true);
           }},
+          { label: '导出CSV模版', icon: '↓', variant: 'default' as const, onClick: () => exportCsvTemplate(['发票类型', '单号', '发票号', '客户名称', '供应商名称', '关联销售订单号', '关联采购订单号', '开票日期', '到期日期', '金额', '已收金额', '已付金额', '税率', '税额', '状态', '备注'], '发票') },
         ]}
         tabs={tabs}
       />

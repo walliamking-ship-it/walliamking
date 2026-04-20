@@ -6,6 +6,7 @@ import OrderTable, { Column } from '@/components/OrderTable';
 import CsvImportModal from '@/components/CsvImportModal';
 import { Material } from '@/lib/types';
 import { MaterialRepo } from '@/lib/repo';
+import { exportCsvTemplate } from '@/lib/csvExport';
 
 const columns: Column<Material>[] = [
   { key: 'code', label: '物料编号', sortable: true },
@@ -57,7 +58,7 @@ function FormModal({ open, onClose, onSave, initial }: { open: boolean; onClose:
   const [form, setForm] = useState<Partial<Material>>(initial || {});
   useEffect(() => { setForm(initial || {}); }, [initial, open]);
   if (!open) return null;
-  const handleSave = () => { if (!form.code || !form.name) { alert('请填写物料编号和物料名称'); return; } onSave(form); onClose(); };
+  const handleSave = async () => { if (!form.code || !form.name) { alert('请填写物料编号和物料名称'); return; } try { await onSave(form); onClose(); } catch (e: any) { alert('保存失败: ' + (e?.message || '未知错误')); } };
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-xl max-h-[90vh] overflow-auto">
@@ -116,6 +117,7 @@ export default function MaterialsPage() {
         actions={[
           { label: '新建物料', icon: '＋', variant: 'primary' as const, onClick: () => { setEditingItem({}); setModalOpen(true); } },
           { label: '导入CSV', icon: '↓', variant: 'default' as const, onClick: () => setImportModalOpen(true) },
+          { label: '导出CSV模版', icon: '↓', variant: 'default' as const, onClick: () => exportCsvTemplate(['物料编号', '物料名称', '规格', '单位', '分类', '备注'], '物料') },
           { label: '导出CSV', icon: '↑', variant: 'default' as const, onClick: () => {
             const csv = ['物料编号,物料名称,规格型号,单位,分类,备注',
               ...filtered.map(m => `${m.code},${m.name},${m.spec},${m.unit},${m.category},${m.remark}`)].join('\n');
@@ -123,7 +125,8 @@ export default function MaterialsPage() {
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a'); a.href = url; a.download = `物料列表_${new Date().toISOString().slice(0,10)}.csv`; a.click();
             URL.revokeObjectURL(url);
-          } },
+          }
+ },
         ]} />
       <div className="flex-1 overflow-auto bg-white">
         <OrderTable columns={tableColumns} data={filtered} loading={loading} emptyMessage="暂无物料数据" onRowClick={item => handleEdit(item)}

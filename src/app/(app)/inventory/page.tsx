@@ -5,6 +5,7 @@ import PageHeader from '@/components/PageHeader';
 import OrderTable, { Column } from '@/components/OrderTable';
 import { Inventory } from '@/lib/types';
 import { InventoryRepo } from '@/lib/repo';
+import { exportCsvTemplate } from '@/lib/csvExport';
 
 const columns: Column<Inventory>[] = [
   { key: '产品名称', label: '产品名称', sortable: true },
@@ -81,10 +82,12 @@ function FormModal({ open, onClose, onSave, initial }: { open: boolean; onClose:
   useEffect(() => { setForm(initial || {}); }, [initial, open]);
   if (!open) return null;
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.产品名称) { alert('请填写产品名称'); return; }
-    onSave(form);
-    onClose();
+    try {
+      await onSave(form);
+      onClose();
+    } catch (e: any) { alert('保存失败: ' + (e?.message || '未知错误')); }
   };
 
   return (
@@ -190,7 +193,7 @@ export default function InventoryPage() {
             <div className="flex items-center gap-1">
               {below && <span className="text-red-500 text-xs" title="低于安全库存">⚠️</span>}
               <span className={below ? (critical ? 'text-red-600 font-bold' : 'text-orange-500 font-semibold') : 'text-gray-800'}>
-                {current.toLocaleString()}
+                {current?.toLocaleString()}
               </span>
             </div>
           );
@@ -281,6 +284,7 @@ export default function InventoryPage() {
       <PageHeader title="库存管理" searchPlaceholder="搜索 产品名称 / 货号 / 分类 / 备注..." onSearch={setSearch}
         actions={[
           { label: '新建库存', icon: '＋', variant: 'primary' as const, onClick: () => { setEditingItem({}); setModalOpen(true); } },
+          { label: '导出CSV模版', icon: '↓', variant: 'default' as const, onClick: () => exportCsvTemplate(['仓库', '名称', '规格', '单位', '库存数量', '在途数量', '安全库存', '成本价', '备注'], '库存') },
         ]}
         tabs={[
           { label: `全部 (${totalItems})`, active: filterTab === 'all', onClick: () => setFilterTab('all') },

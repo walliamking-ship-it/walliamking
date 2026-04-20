@@ -51,14 +51,15 @@ export const CustomerRepo = {
   async create(data: Omit<Customer, 'id'>): Promise<Customer> {
     if (USE_MOCK_DATA) {
       const all = getCustomers();
-      if (all.find(c => c.code === data.code)) throw new Error(`客户编号 "${data.code}" 已存在`);
+      if (all.find(c => c.客户编号 === data.客户编号)) throw new Error(`客户编号 "${data.客户编号}" 已存在`);
       const newItem = { ...data, id: String(Date.now()) } as Customer;
       setCustomers([...all, newItem]);
       return newItem;
     }
     const all = await this.findAll();
-    if (all.find(c => c.code === data.code)) throw new Error(`客户编号 "${data.code}" 已存在`);
-    await DataService.create(TABLE_IDS.customers, data);
+    if (all.find(c => c.客户编号 === data.客户编号)) throw new Error(`客户编号 "${data.客户编号}" 已存在`);
+    const result = await DataService.create(TABLE_IDS.customers, data);
+    if (!result.success) throw new Error(result.error || '创建失败');
     const updated = await this.findAll();
     return updated[updated.length - 1];
   },
@@ -67,14 +68,14 @@ export const CustomerRepo = {
       const all = getCustomers();
       const idx = all.findIndex(c => c.id === id);
       if (idx === -1) throw new Error('客户不存在');
-      if (data.code && all.find(c => c.id !== id && c.code === data.code)) throw new Error(`客户编号 "${data.code}" 已存在`);
+      if (data.code && all.find(c => c.id !== id && c.客户编号 === data.客户编号)) throw new Error(`客户编号 "${data.code}" 已存在`);
       const updated = [...all];
       updated[idx] = { ...updated[idx], ...data };
       setCustomers(updated);
       return updated[idx];
     }
     const all = await this.findAll();
-    if (data.code && all.find(c => c.id !== id && c.code === data.code)) throw new Error(`客户编号 "${data.code}" 已存在`);
+    if (data.code && all.find(c => c.id !== id && c.客户编号 === data.客户编号)) throw new Error(`客户编号 "${data.code}" 已存在`);
     await DataService.update(TABLE_IDS.customers, id, data);
     return await this.findById(id);
   },
@@ -101,14 +102,15 @@ export const VendorRepo = {
   async create(data: Omit<Vendor, 'id'>): Promise<Vendor> {
     if (USE_MOCK_DATA) {
       const all = getVendors();
-      if (all.find(v => v.code === data.code)) throw new Error(`供应商编号 "${data.code}" 已存在`);
+      if (all.find(v => v.供应商编号 === data.供应商编号)) throw new Error(`供应商编号 "${data.供应商编号}" 已存在`);
       const newItem = { ...data, id: String(Date.now()) } as Vendor;
       setVendors([...all, newItem]);
       return newItem;
     }
     const all = await this.findAll();
-    if (all.find(v => v.code === data.code)) throw new Error(`供应商编号 "${data.code}" 已存在`);
-    await DataService.create(TABLE_IDS.vendors, data);
+    if (all.find(v => v.供应商编号 === data.供应商编号)) throw new Error(`供应商编号 "${data.供应商编号}" 已存在`);
+    const vendorResult = await DataService.create(TABLE_IDS.vendors, data);
+    if (!vendorResult.success) throw new Error(vendorResult.error || '创建供应商失败');
     const updated = await this.findAll();
     return updated[updated.length - 1];
   },
@@ -117,14 +119,14 @@ export const VendorRepo = {
       const all = getVendors();
       const idx = all.findIndex(v => v.id === id);
       if (idx === -1) throw new Error('供应商不存在');
-      if (data.code && all.find(v => v.id !== id && v.code === data.code)) throw new Error(`供应商编号 "${data.code}" 已存在`);
+      if (data.code && all.find(v => v.id !== id && v.供应商编号 === data.供应商编号)) throw new Error(`供应商编号 "${data.供应商编号}" 已存在`);
       const updated = [...all];
       updated[idx] = { ...updated[idx], ...data };
       setVendors(updated);
       return updated[idx];
     }
     const all = await this.findAll();
-    if (data.code && all.find(v => v.id !== id && v.code === data.code)) throw new Error(`供应商编号 "${data.code}" 已存在`);
+    if (data.code && all.find(v => v.id !== id && v.供应商编号 === data.供应商编号)) throw new Error(`供应商编号 "${data.供应商编号}" 已存在`);
     await DataService.update(TABLE_IDS.vendors, id, data);
     return await this.findById(id);
   },
@@ -199,14 +201,15 @@ export const ProductRepo = {
   async create(data: Omit<Product, 'id'>): Promise<Product> {
     if (USE_MOCK_DATA) {
       const all = getProducts();
-      if (data.code && all.find(p => p.code === data.code)) throw new Error(`货号 "${data.code}" 已存在`);
+      if (data.code && all.find(p => p.code === data.code)) throw new Error(`货号 "${data.货号}" 已存在`);
       const newItem = { ...data, id: String(Date.now()) } as Product;
       setProducts([...all, newItem]);
       return newItem;
     }
     const all = await this.findAll();
-    if (data.code && all.find(p => p.code === data.code)) throw new Error(`货号 "${data.code}" 已存在`);
-    await DataService.create(TABLE_IDS.products, data);
+    if (data.code && all.find(p => p.code === data.code)) throw new Error(`货号 "${data.货号}" 已存在`);
+    const productResult = await DataService.create(TABLE_IDS.products, data);
+    if (!productResult.success) throw new Error(productResult.error || '创建产品失败');
     const updated = await this.findAll();
     return updated[updated.length - 1];
   },
@@ -215,14 +218,14 @@ export const ProductRepo = {
       const all = getProducts();
       const idx = all.findIndex(p => p.id === id);
       if (idx === -1) throw new Error('产品不存在');
-      if (data.code && all.find(p => p.id !== id && p.code === data.code)) throw new Error(`货号 "${data.code}" 已存在`);
+      if (data.code && all.find(p => p.id !== id && p.code === data.code)) throw new Error(`货号 "${data.货号}" 已存在`);
       const updated = [...all];
       updated[idx] = { ...updated[idx], ...data };
       setProducts(updated);
       return updated[idx];
     }
     const all = await this.findAll();
-    if (data.code && all.find(p => p.id !== id && p.code === data.code)) throw new Error(`货号 "${data.code}" 已存在`);
+    if (data.code && all.find(p => p.id !== id && p.code === data.code)) throw new Error(`货号 "${data.货号}" 已存在`);
     await DataService.update(TABLE_IDS.products, id, data);
     return await this.findById(id);
   },
@@ -353,7 +356,9 @@ export const SalesOrderRepo = {
     }
     const all = await this.findAll();
     if (all.find(s => s.单号 === data.单号)) throw new Error(`单号 "${data.单号}" 已存在`);
-    await DataService.create(TABLE_IDS.salesOrders, data);
+    // 移除 id 字段，BITABLE 会自动生成 record_id
+    const { id: _unused, ...bitableFields } = data;
+    await DataService.create(TABLE_IDS.salesOrders, bitableFields);
     const updated = await this.findAll();
     return updated[updated.length - 1];
   },
@@ -546,34 +551,57 @@ export const WarehouseRepo = {
 // ========== 销售订单明细 ==========
 export const SalesOrderItemRepo = {
   async findAll(): Promise<SalesOrderItem[]> {
-    return getSalesOrderItems();
+    if (USE_MOCK_DATA) return getSalesOrderItems();
+    return await DataService.list(TABLE_IDS.salesOrderItems) as SalesOrderItem[];
   },
   async findById(id: string): Promise<SalesOrderItem | undefined> {
-    return getSalesOrderItems().find(i => i.id === id);
+    const all = await this.findAll();
+    return all.find(i => i.id === id);
   },
   async findBySalesOrderId(salesOrderId: string): Promise<SalesOrderItem[]> {
-    return getSalesOrderItems().filter(i => i.销售订单id === salesOrderId);
+    const all = await this.findAll();
+    return all.filter(i => i.销售订单id === salesOrderId);
   },
   async create(data: Omit<SalesOrderItem, 'id'>): Promise<SalesOrderItem> {
-    const newItem = { ...data, id: String(Date.now()) } as SalesOrderItem;
-    setSalesOrderItems([...getSalesOrderItems(), newItem]);
-    return newItem;
+    if (USE_MOCK_DATA) {
+      const newItem = { ...data, id: String(Date.now()) } as SalesOrderItem;
+      setSalesOrderItems([...getSalesOrderItems(), newItem]);
+      return newItem;
+    }
+    await DataService.create(TABLE_IDS.salesOrderItems, data);
+    const all = await this.findAll();
+    // 返回新创建的记录（取最新的一个）
+    return all[all.length - 1];
   },
   async update(id: string, data: Partial<SalesOrderItem>): Promise<SalesOrderItem | undefined> {
-    const all = getSalesOrderItems();
-    const idx = all.findIndex(i => i.id === id);
-    if (idx === -1) return undefined;
-    const updated = [...all];
-    updated[idx] = { ...updated[idx], ...data };
-    setSalesOrderItems(updated);
-    return updated[idx];
+    if (USE_MOCK_DATA) {
+      const all = getSalesOrderItems();
+      const idx = all.findIndex(i => i.id === id);
+      if (idx === -1) return undefined;
+      const updated = [...all];
+      updated[idx] = { ...updated[idx], ...data };
+      setSalesOrderItems(updated);
+      return updated[idx];
+    }
+    await DataService.update(TABLE_IDS.salesOrderItems, id, data);
+    return await this.findById(id);
   },
   async delete(id: string): Promise<boolean> {
-    setSalesOrderItems(getSalesOrderItems().filter(i => i.id !== id));
-    return true;
+    if (USE_MOCK_DATA) {
+      setSalesOrderItems(getSalesOrderItems().filter(i => i.id !== id));
+      return true;
+    }
+    return await DataService.delete(TABLE_IDS.salesOrderItems, id);
   },
   async deleteBySalesOrderId(salesOrderId: string): Promise<boolean> {
-    setSalesOrderItems(getSalesOrderItems().filter(i => i.销售订单id !== salesOrderId));
+    if (USE_MOCK_DATA) {
+      setSalesOrderItems(getSalesOrderItems().filter(i => i.销售订单id !== salesOrderId));
+      return true;
+    }
+    const all = await this.findBySalesOrderId(salesOrderId);
+    for (const item of all) {
+      await DataService.delete(TABLE_IDS.salesOrderItems, item.id);
+    }
     return true;
   },
 };
@@ -631,34 +659,56 @@ export const DeliveryOrderItemRepo = {
 // ========== 采购订单明细 ==========
 export const PurchaseOrderItemRepo = {
   async findAll(): Promise<PurchaseOrderItem[]> {
-    return getPurchaseOrderItems();
+    if (USE_MOCK_DATA) return getPurchaseOrderItems();
+    return await DataService.list(TABLE_IDS.purchaseOrderItems) as PurchaseOrderItem[];
   },
   async findById(id: string): Promise<PurchaseOrderItem | undefined> {
-    return getPurchaseOrderItems().find(i => i.id === id);
+    const all = await this.findAll();
+    return all.find(i => i.id === id);
   },
   async findByPurchaseOrderId(purchaseOrderId: string): Promise<PurchaseOrderItem[]> {
-    return getPurchaseOrderItems().filter(i => i.采购订单id === purchaseOrderId);
+    const all = await this.findAll();
+    return all.filter(i => i.采购订单id === purchaseOrderId);
   },
   async create(data: Omit<PurchaseOrderItem, 'id'>): Promise<PurchaseOrderItem> {
-    const newItem = { ...data, id: String(Date.now()) } as PurchaseOrderItem;
-    setPurchaseOrderItems([...getPurchaseOrderItems(), newItem]);
-    return newItem;
+    if (USE_MOCK_DATA) {
+      const newItem = { ...data, id: String(Date.now()) } as PurchaseOrderItem;
+      setPurchaseOrderItems([...getPurchaseOrderItems(), newItem]);
+      return newItem;
+    }
+    await DataService.create(TABLE_IDS.purchaseOrderItems, data);
+    const all = await this.findAll();
+    return all[all.length - 1];
   },
   async update(id: string, data: Partial<PurchaseOrderItem>): Promise<PurchaseOrderItem | undefined> {
-    const all = getPurchaseOrderItems();
-    const idx = all.findIndex(i => i.id === id);
-    if (idx === -1) return undefined;
-    const updated = [...all];
-    updated[idx] = { ...updated[idx], ...data };
-    setPurchaseOrderItems(updated);
-    return updated[idx];
+    if (USE_MOCK_DATA) {
+      const all = getPurchaseOrderItems();
+      const idx = all.findIndex(i => i.id === id);
+      if (idx === -1) return undefined;
+      const updated = [...all];
+      updated[idx] = { ...updated[idx], ...data };
+      setPurchaseOrderItems(updated);
+      return updated[idx];
+    }
+    await DataService.update(TABLE_IDS.purchaseOrderItems, id, data);
+    return await this.findById(id);
   },
   async delete(id: string): Promise<boolean> {
-    setPurchaseOrderItems(getPurchaseOrderItems().filter(i => i.id !== id));
-    return true;
+    if (USE_MOCK_DATA) {
+      setPurchaseOrderItems(getPurchaseOrderItems().filter(i => i.id !== id));
+      return true;
+    }
+    return await DataService.delete(TABLE_IDS.purchaseOrderItems, id);
   },
   async deleteByPurchaseOrderId(purchaseOrderId: string): Promise<boolean> {
-    setPurchaseOrderItems(getPurchaseOrderItems().filter(i => i.采购订单id !== purchaseOrderId));
+    if (USE_MOCK_DATA) {
+      setPurchaseOrderItems(getPurchaseOrderItems().filter(i => i.采购订单id !== purchaseOrderId));
+      return true;
+    }
+    const all = await this.findByPurchaseOrderId(purchaseOrderId);
+    for (const item of all) {
+      await DataService.delete(TABLE_IDS.purchaseOrderItems, item.id);
+    }
     return true;
   },
 };

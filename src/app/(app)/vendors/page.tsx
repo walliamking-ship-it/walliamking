@@ -1,22 +1,23 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import PageHeader from '@/components/PageHeader';
 import OrderTable, { Column } from '@/components/OrderTable';
 import CsvImportModal from '@/components/CsvImportModal';
 import { Vendor } from '@/lib/types';
 import { VendorRepo } from '@/lib/repo';
+import { exportCsvTemplate } from '@/lib/csvExport';
 
 const columns: Column<Vendor>[] = [
-  { key: 'code', label: '供应商编号', sortable: true },
-  { key: 'name', label: '供应商名称', sortable: true },
-  { key: 'contact', label: '联系人' },
-  { key: 'phone', label: '电话' },
-  { key: 'taxNumber', label: '税号' },
-  { key: 'bankAccount', label: '银行帐号' },
-  { key: 'bankName', label: '开户行' },
-  { key: 'address', label: '地址' },
-  { key: 'remark', label: '备注' },
+  { key: '供应商编号', label: '供应商编号', sortable: true },
+  { key: '供应商名称', label: '供应商名称', sortable: true },
+  { key: '联系人', label: '联系人' },
+  { key: '电话', label: '电话' },
+  { key: '税号', label: '税号' },
+  { key: '银行帐号', label: '银行帐号' },
+  { key: '开户行名称', label: '开户行' },
+  { key: '地址', label: '地址' },
+  { key: '备注', label: '备注' },
 ];
 
 function VendorForm({ value, onChange, readOnlyCode }: { value: Partial<Vendor>; onChange: (key: keyof Vendor, v: any) => void; readOnlyCode?: boolean }) {
@@ -24,29 +25,29 @@ function VendorForm({ value, onChange, readOnlyCode }: { value: Partial<Vendor>;
     <div className="grid grid-cols-2 gap-3">
       <div>
         <label className="block text-xs text-gray-500 mb-0.5">供应商编号 <span className="text-red-500">*</span></label>
-        <input type="text" value={value.code || ''} readOnly={readOnlyCode}
-          onChange={readOnlyCode ? undefined : e => onChange('code', e.target.value)}
+        <input type="text" value={value.供应商编号 || ''} readOnly={readOnlyCode}
+          onChange={readOnlyCode ? undefined : e => onChange('供应商编号', e.target.value)}
           className={`w-full border rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none ${readOnlyCode ? 'bg-gray-100 border-gray-200 text-gray-600' : 'border-gray-300'}`}
           placeholder="自动生成" />
       </div>
       <div>
         <label className="block text-xs text-gray-500 mb-0.5">供应商名称 <span className="text-red-500">*</span></label>
-        <input type="text" value={value.name || ''} onChange={e => onChange('name', e.target.value)}
+        <input type="text" value={value.供应商名称 || ''} onChange={e => onChange('供应商名称', e.target.value)}
           className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" placeholder="供应商全称" required />
       </div>
       <div>
         <label className="block text-xs text-gray-500 mb-0.5">联系人</label>
-        <input type="text" value={value.contact || ''} onChange={e => onChange('contact', e.target.value)}
+        <input type="text" value={value.联系人 || ''} onChange={e => onChange('联系人', e.target.value)}
           className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" placeholder="联系人姓名" />
       </div>
       <div>
         <label className="block text-xs text-gray-500 mb-0.5">电话</label>
-        <input type="text" value={value.phone || ''} onChange={e => onChange('phone', e.target.value)}
+        <input type="text" value={value.电话 || ''} onChange={e => onChange('电话', e.target.value)}
           className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" placeholder="电话/手机" />
       </div>
       <div className="col-span-2">
         <label className="block text-xs text-gray-500 mb-0.5">地址</label>
-        <input type="text" value={value.address || ''} onChange={e => onChange('address', e.target.value)}
+        <input type="text" value={value.地址 || ''} onChange={e => onChange('地址', e.target.value)}
           className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" placeholder="详细地址" />
       </div>
       {/* 开票信息 */}
@@ -55,27 +56,27 @@ function VendorForm({ value, onChange, readOnlyCode }: { value: Partial<Vendor>;
       </div>
       <div>
         <label className="block text-xs text-gray-500 mb-0.5">税号</label>
-        <input type="text" value={value.taxNumber || ''} onChange={e => onChange('taxNumber', e.target.value)}
+        <input type="text" value={value.税号 || ''} onChange={e => onChange('税号', e.target.value)}
           className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" placeholder="统一社会信用代码" />
       </div>
       <div>
         <label className="block text-xs text-gray-500 mb-0.5">银行帐号</label>
-        <input type="text" value={value.bankAccount || ''} onChange={e => onChange('bankAccount', e.target.value)}
+        <input type="text" value={value.银行帐号 || ''} onChange={e => onChange('银行帐号', e.target.value)}
           className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" placeholder="银行帐号" />
       </div>
       <div>
         <label className="block text-xs text-gray-500 mb-0.5">开户行号</label>
-        <input type="text" value={value.bankCode || ''} onChange={e => onChange('bankCode', e.target.value)}
+        <input type="text" value={value.开户行号 || ''} onChange={e => onChange('开户行号', e.target.value)}
           className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" placeholder="联行号/支行号" />
       </div>
       <div>
         <label className="block text-xs text-gray-500 mb-0.5">开户行名称</label>
-        <input type="text" value={value.bankName || ''} onChange={e => onChange('bankName', e.target.value)}
+        <input type="text" value={value.开户行名称 || ''} onChange={e => onChange('开户行名称', e.target.value)}
           className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" placeholder="开户行全称" />
       </div>
       <div className="col-span-2">
         <label className="block text-xs text-gray-500 mb-0.5">备注</label>
-        <textarea value={value.remark || ''} onChange={e => onChange('remark', e.target.value)}
+        <textarea value={value.备注 || ''} onChange={e => onChange('备注', e.target.value)}
           className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" rows={2} placeholder="备注信息" />
       </div>
     </div>
@@ -84,7 +85,7 @@ function VendorForm({ value, onChange, readOnlyCode }: { value: Partial<Vendor>;
 
 function generateVendorCode(existing: Vendor[]): string {
   const codes = existing
-    .map(v => v.code)
+    .map(v => v.供应商编号)
     .filter(Boolean)
     .filter(code => /^S\d+$/.test(code))
     .map(code => parseInt(code.slice(1), 10));
@@ -100,21 +101,29 @@ function FormModal({ open, onClose, onSave, initial, existingVendors }: {
   existingVendors: Vendor[];
 }) {
   const [form, setForm] = useState<Partial<Vendor>>(initial || {});
+  const prevOpenRef = useRef(false);
   useEffect(() => {
-    if (open) {
+    if (open && !prevOpenRef.current) {
       if (initial?.id) {
         setForm(initial);
       } else {
-        setForm({ code: generateVendorCode(existingVendors), name: '', contact: '', phone: '', address: '', remark: '', taxNumber: '', bankAccount: '', bankCode: '', bankName: '' });
+        setForm({ 供应商编号: generateVendorCode(existingVendors), 供应商名称: '', contact: '', phone: '', address: '', remark: '', taxNumber: '', bankAccount: '', bankCode: '', bankName: '' });
       }
+    } else if (open && initial?.id) {
+      setForm(initial);
     }
-  }, [initial, open, existingVendors]);
+    prevOpenRef.current = open;
+  }, [open, initial]);
   if (!open) return null;
 
-  const handleSave = () => {
-    if (!form.code || !form.name) { alert('请填写供应商编号和供应商名称'); return; }
-    onSave(form);
-    onClose();
+  const handleSave = async () => {
+    if (!form.供应商编号 || !form.供应商名称) { alert('请填写供应商编号和供应商名称'); return; }
+    try {
+      await onSave(form);
+      onClose();
+    } catch (e: any) {
+      alert('保存失败: ' + (e?.message || '未知错误'));
+    }
   };
 
   return (
@@ -151,7 +160,7 @@ export default function VendorsPage() {
 
   const filtered = data.filter(item => {
     const q = search.toLowerCase();
-    return !q || [item.code, item.name, item.contact, item.phone, item.address, item.remark].some(v => v?.toLowerCase().includes(q));
+    return !q || [item.供应商编号, item.供应商名称, item.联系人, item.电话, item.地址, item.备注].some(v => v?.toLowerCase().includes(q));
   });
 
   const handleSave = async (form: Partial<Vendor>) => {
@@ -163,23 +172,23 @@ export default function VendorsPage() {
 
   const handleCsvImport = async (rows: Record<string, string>[]) => {
     for (const row of rows) {
-      const code = row['供应商编号'] || row['编号'] || row['code'] || '';
-      const name = row['供应商名称'] || row['名称'] || row['name'] || '';
+      const code = row['供应商编号'] || row['编号'] || '';
+      const name = row['供应商名称'] || row['名称'] || '';
       if (!code || !name) continue;
-      const existing = data.find(v => v.code === code);
+      const existing = data.find(v => v.供应商编号 === code);
       if (existing) {
         await VendorRepo.update(existing.id, {
-          name: row['供应商名称'] || row['名称'] || existing.name,
-          contact: row['联系人'] || row['contact'] || '',
-          phone: row['电话'] || row['phone'] || '',
-          address: row['地址'] || row['address'] || '',
-          remark: row['备注'] || row['remark'] || '',
+          name: row['供应商名称'] || row['名称'] || existing.供应商名称,
+          联系人: row['联系人'] || '',
+          电话: row['电话'] || '',
+          地址: row['地址'] || '',
+          备注: row['备注'] || '',
         });
       } else {
         await VendorRepo.create({
           code, name: row['供应商名称'] || row['名称'] || name,
-          contact: row['联系人'] || row['contact'] || '', phone: row['电话'] || row['phone'] || '',
-          address: row['地址'] || row['address'] || '', remark: row['备注'] || row['remark'] || '',
+          联系人: row['联系人'] || '', 电话: row['电话'] || '',
+          地址: row['地址'] || '', 备注: row['备注'] || '',
         });
       }
     }
@@ -241,23 +250,25 @@ export default function VendorsPage() {
         actions={[
           { label: '新建供应商', icon: '＋', variant: 'primary' as const, onClick: () => { setEditingItem({}); setModalOpen(true); } },
           { label: '导入CSV', icon: '↓', variant: 'default' as const, onClick: () => setImportModalOpen(true) },
+          { label: '导出CSV模版', icon: '↓', variant: 'default' as const, onClick: () => exportCsvTemplate(['供应商编号', '供应商名称', '联系人', '电话', '地址', '备注'], '供应商') },
           { label: '导出CSV', icon: '↑', variant: 'default' as const, onClick: () => {
             const csv = ['供应商编号,供应商名称,联系人,电话,地址,备注',
-              ...filtered.map(v => `${v.code},${v.name},${v.contact},${v.phone},${v.address},${v.remark}`)].join('\n');
+              ...filtered.map(v => `${v.供应商编号},${v.供应商名称},${v.联系人},${v.电话},${v.地址},${v.备注}`)].join('\n');
             const blob = new Blob([csv], { type: 'text/csv' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a'); a.href = url; a.download = `供应商列表_${new Date().toISOString().slice(0,10)}.csv`; a.click();
             URL.revokeObjectURL(url);
-          } },
+          }
+ },
         ]} />
       <div className="flex-1 overflow-auto bg-white">
         <OrderTable columns={tableColumns} data={filtered} loading={loading} emptyMessage="暂无供应商数据"
-          onRowClick={item => handleEdit(item)} renderOrderNumber={item => <span className="text-blue-600 font-mono text-xs hover:underline">{item.code}</span>} />
+          onRowClick={item => handleEdit(item)} renderOrderNumber={item => <span className="text-blue-600 font-mono text-xs hover:underline">{item.供应商编号}</span>} />
       </div>
       <FormModal open={modalOpen} onClose={() => { setModalOpen(false); setEditingItem(undefined); }} onSave={handleSave} initial={editingItem} existingVendors={data} />
       <CsvImportModal open={importModalOpen} onClose={() => setImportModalOpen(false)} onImport={handleCsvImport}
         headers={['供应商编号', '供应商名称', '联系人', '电话', '地址', '备注']}
-        fields={['code', 'name', 'contact', 'phone', 'address', 'remark']} />
+        fields={['供应商编号', '供应商名称', '联系人', '电话', '地址', '备注']} />
       {showBatchConfirm && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">

@@ -5,7 +5,8 @@ import PageHeader from '@/components/PageHeader';
 import OrderTable, { Column } from '@/components/OrderTable';
 import StatusBadge from '@/components/StatusBadge';
 import { WorkOrder, WorkOrderProcess, SalesOrder, Product, Process } from '@/lib/types';
-import { WorkOrderRepo, SalesOrderRepo, ProductRepo, ProcessRepo } from '@/lib/repo';
+import { WorkOrderRepo, SalesOrderRepo, ProductRepo, ProcessRepo, InventoryRepo } from '@/lib/repo';
+import { exportCsvTemplate } from '@/lib/csvExport';
 
 function generateWorkOrderNo(): string {
   const today = new Date();
@@ -92,10 +93,12 @@ function WorkOrderFormModal({ open, onClose, onSave, initial, salesOrders, produ
 
   if (!open) return null;
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.产品名称) { alert('请选择或填写产品'); return; }
-    onSave(form as Omit<WorkOrder, 'id'>);
-    onClose();
+    try {
+      await onSave(form as Omit<WorkOrder, 'id'>);
+      onClose();
+    } catch (e: any) { alert('保存失败: ' + (e?.message || '未知错误')); }
   };
 
   return (
@@ -124,7 +127,7 @@ function WorkOrderFormModal({ open, onClose, onSave, initial, salesOrders, produ
               <select value='' onChange={e => handleProductChange(e.target.value)}
                 className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none bg-white">
                 <option value="">请选择产品</option>
-                {products.map(p => <option key={p.id} value={p.id}>{p.name} ({p.code})</option>)}
+                {products.map(p => <option key={p.id} value={p.id}>{p.产品名称} ({p.货号})</option>)}
               </select>
             </div>
             <div>
@@ -329,9 +332,24 @@ export default function WorkOrdersPage() {
   ];
 
   const handleStatusChange = async (w: WorkOrder, newStatus: WorkOrder['状态']) => {
+    if (newStatus === '已完成' && !w.工序列表.every(p => p.状态 === '已完成')) {
+      const confirmed = confirm('该工单尚有未完成的工序，确定要标记为已完成吗？');
+      if (!confirmed) return;
+    }
     await WorkOrderRepo.update(w.id, { 状态: newStatus });
     if (newStatus === '已完成') {
       await WorkOrderRepo.update(w.id, { 实际完成日期: new Date().toISOString().slice(0, 10) });
+    }
+    // 入库：自动更新库存
+    if (newStatus === '已入库') {
+      const inventory = await InventoryRepo.findAll();
+      const existing = inventory.find(i => i.货号 === w.物料编码 || i.产品名称 === w.产品名称);
+      if (existing) {
+        await InventoryRepo.update(existing.id, { 当前库存: (existing.当前库存 || 0) + w.已完成数量 });
+        alert(`入库成功！\n产品：${w.产品名称}\n入库数量：${w.已完成数量}\n当前库存：${(existing.当前库存 || 0) + w.已完成数量}`);
+      } else {
+        alert(`库存中未找到对应产品 [${w.产品名称}]，请先在库存管理中添加该产品记录！\n入库数量：${w.已完成数量}`);
+      }
     }
     await loadData();
   };
@@ -353,6 +371,7 @@ export default function WorkOrdersPage() {
         actions={[
           { label: '从销售订单生成', icon: '📋', variant: 'default' as const, onClick: () => setGenerateModalOpen(true) },
           { label: '新建施工单', icon: '＋', variant: 'primary' as const, onClick: () => { setEditingItem(undefined); setModalOpen(true); } },
+          { label: '导出CSV模版', icon: '↓', variant: 'default' as const, onClick: () => exportCsvTemplate(['单号', '关联销售订单号', '产品名称', '规格', '单位', '计划数量', '计划开始日期', '计划完成日期', '实际开始日期', '实际完成日期', '状态', '执行人', '备注'], '施工单') },
         ]}
         tabs={statusTabs}
       />
@@ -423,7 +442,8 @@ export default function WorkOrdersPage() {
           await WorkOrderRepo.create(wo);
           await loadData();
           setGenerateModalOpen(false);
-        }}
+        }
+}
       />
     </div>
   );
@@ -454,8 +474,8 @@ function GenerateWorkOrderModal({ open, onClose, salesOrders, products, onGenera
       单号: generateWorkOrderNo(),
       关联销售订单id: selectedSo.id,
       关联销售订单号: selectedSo.单号,
-      产品名称: selectedProduct.name,
-      物料编码: selectedProduct.code,
+      产品名称: selectedProduct.产品名称,
+      物料编码: selectedProduct.货号,
       规格: selectedProduct.spec || '',
       单位: selectedProduct.unit || '',
       计划数量: 0,
@@ -507,7 +527,7 @@ function GenerateWorkOrderModal({ open, onClose, salesOrders, products, onGenera
             <select value={selectedProductId} onChange={e => setSelectedProductId(e.target.value)}
               className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm bg-white focus:border-blue-500 outline-none">
               <option value="">请选择产品</option>
-              {products.map(p => <option key={p.id} value={p.id}>{p.name} ({p.code})</option>)}
+              {products.map(p => <option key={p.id} value={p.id}>{p.产品名称} ({p.货号})</option>)}
             </select>
           </div>
           <div>

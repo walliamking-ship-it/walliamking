@@ -1,33 +1,33 @@
 // ========== 客户 ==========
 export interface Customer {
   id: string;
-  code: string;      // 客户编号
-  name: string;      // 客户名称
-  contact: string;   // 联系人
-  phone: string;     // 电话
-  address: string;   // 地址
-  remark: string;    // 备注
+  客户编号: string;
+  客户名称: string;
+  联系人: string;
+  电话: string;
+  地址: string;
+  备注: string;
   // 开票信息
-  taxNumber: string;   // 税号
-  bankAccount: string; // 银行帐号
-  bankCode: string;    // 开户行号
-  bankName: string;    // 开户行名称
+  税号: string;
+  银行帐号: string;
+  开户行号: string;
+  开户行名称: string;
 }
 
 // ========== 供应商 ==========
 export interface Vendor {
   id: string;
-  code: string;      // 供应商编号
-  name: string;      // 供应商名称
-  contact: string;   // 联系人
-  phone: string;     // 电话
-  address: string;   // 地址
-  remark: string;    // 备注
+  供应商编号: string;
+  供应商名称: string;
+  联系人: string;
+  电话: string;
+  地址: string;
+  备注: string;
   // 开票信息
-  taxNumber: string;   // 税号
-  bankAccount: string; // 银行帐号
-  bankCode: string;    // 开户行号
-  bankName: string;    // 开户行名称
+  税号: string;
+  银行帐号: string;
+  开户行号: string;
+  开户行名称: string;
 }
 
 // ========== 物料 ==========
@@ -318,9 +318,13 @@ export interface SalesInvoice {
   单号: string;
   发票号: string;
   开票日期: string;
+  到期日期: string;         // ⚡ 新增：到期日
   客户名称: string;
-  关联销售订单ids: string[];
+  关联销售订单号: string;     // ⚡ 新增：关联销售单号（单选，方便显示）
+  关联销售订单ids: string[];  // 关联销售订单（多选）
   金额: number;
+  已收金额: number;        // ⚡ 新增：已收款
+  未收金额: number;           // ⚡ 新增：未收金额 = 金额 - 已收金额
   税率: number;
   税额: number;
   状态: InvoiceStatus;
@@ -334,9 +338,13 @@ export interface PurchaseInvoice {
   单号: string;
   发票号: string;
   开票日期: string;
+  到期日期: string;           // ⚡ 新增：到期日
   供应商名称: string;
-  关联采购订单ids: string[];
+  关联采购订单号: string;     // ⚡ 新增：关联采购单号（单选）
+  关联采购订单ids: string[];  // 关联采购订单（多选）
   金额: number;
+  已付金额: number;            // ⚡ 新增：已付款
+  未付金额: number;           // ⚡ 新增：未付款 = 金额 - 已付金额
   税率: number;
   税额: number;
   状态: InvoiceStatus;

@@ -131,7 +131,7 @@ function OrderItemsEditor({ rows, onChange }: { rows: OrderItemRow[]; onChange: 
                     >
                       <option value="">请选择产品</option>
                       {products.map(p => (
-                        <option key={p.id} value={p.id}>{(p as any).productName || (p as any)['产品名称'] || p.name} ({(p as any).code || p.code})</option>
+                        <option key={p.id} value={p.id}>{p.产品名称} ({p.货号})</option>
                       ))}
                     </select>
                   </td>
@@ -194,7 +194,7 @@ function PurchaseOrderForm({ value, onChange }: { value: Partial<PurchaseOrder>;
         <select value={value.供应商名称 || ''} onChange={e => onChange('供应商名称', e.target.value)}
           className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none bg-white" required>
           <option value="">请选择供应商</option>
-          {vendors.map(v => <option key={v.id} value={v.name}>{v.name} ({v.code})</option>)}
+          {vendors.map(v => <option key={v.id} value={v.供应商名称}>{v.供应商名称} ({v.供应商编号})</option>)}
         </select>
       </div>
       <div>
@@ -287,10 +287,12 @@ function FormModal({ open, onClose, onSave, initial, initialItems }: {
   useEffect(() => { setForm(initial || {}); setItems(initialItems || []); }, [initial, initialItems, open]);
   if (!open) return null;
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.供应商名称) { alert('请选择供应商名称'); return; }
-    onSave(form, items);
-    onClose();
+    try {
+      await onSave(form, items);
+      onClose();
+    } catch (e: any) { alert('保存失败: ' + (e?.message || '未知错误')); }
   };
 
   return (
@@ -327,7 +329,7 @@ export default function PurchaseOrdersPage() {
   const [showBatchConfirm, setShowBatchConfirm] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [orderItemsMap, setOrderItemsMap] = useState<Record<string, PurchaseOrderItem[]>>({});
-  const [warehouses, setWarehouses] = useState<{id: string; name: string}[]>([]);
+  const [warehouses, setWarehouses] = useState<{id: string; 仓库: string}[]>([]);
   const [receivingModalOpen, setReceivingModalOpen] = useState(false);
   const [receivingSourceOrder, setReceivingSourceOrder] = useState<PurchaseOrder | null>(null);
   const [receivingForm, setReceivingForm] = useState({ 收货仓库: '', 收货人: '', 联系电话: '', 车牌号: '', 备注: '' });
@@ -337,7 +339,7 @@ export default function PurchaseOrdersPage() {
   const [detailTab, setDetailTab] = useState<'basic' | 'receiving' | 'payment' | 'invoice'>('basic');
 
   const loadData = async () => { setLoading(true); try { setData(await PurchaseOrderRepo.findAll()); } finally { setLoading(false); } };
-  useEffect(() => { loadData(); WarehouseRepo.findAll().then(ws => setWarehouses(ws.map(w => ({ id: w.id, name: w.name })))); }, []);
+  useEffect(() => { loadData(); WarehouseRepo.findAll().then(ws => setWarehouses(ws.map(w => ({ id: w.id, 仓库: w.仓库 })))); }, []);
 
   // 加载关联数据（当选中订单时）
   useEffect(() => {
@@ -793,7 +795,7 @@ export default function PurchaseOrdersPage() {
                 <select value={receivingForm.收货仓库} onChange={e => setReceivingForm(f => ({ ...f, 收货仓库: e.target.value }))}
                   className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm bg-white">
                   <option value="">请选择仓库</option>
-                  {warehouses.map(w => <option key={w.id} value={w.name}>{w.name}</option>)}
+                  {warehouses.map(w => <option key={w.id} value={w.仓库}>{w.仓库}</option>)}
                 </select>
               </div>
               <div>

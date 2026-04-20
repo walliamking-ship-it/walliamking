@@ -6,6 +6,7 @@ import OrderTable, { Column } from '@/components/OrderTable';
 import StatusBadge, { DateCell } from '@/components/StatusBadge';
 import { DeliveryOrder, DeliveryOrderItem, SalesOrder, SalesOrderItem, Warehouse } from '@/lib/types';
 import { DeliveryOrderRepo, DeliveryOrderItemRepo, SalesOrderRepo, SalesOrderItemRepo, WarehouseRepo } from '@/lib/repo';
+import { exportCsvTemplate } from '@/lib/csvExport';
 
 const columns: Column<DeliveryOrder>[] = [
   { key: '单号', label: '单号', sortable: true },
@@ -88,7 +89,7 @@ function DeliveryOrderForm({ value, onChange, salesOrders }: {
         <select value={value.发货仓库 || ''} onChange={e => onChange('发货仓库', e.target.value)}
           className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none bg-white">
           <option value="">请选择仓库</option>
-          {warehouses.map(w => <option key={w.id} value={w.name}>{w.name}</option>)}
+          {warehouses.map(w => <option key={w.id} value={w.仓库}>{w.仓库}</option>)}
         </select>
       </div>
       <div>
@@ -253,7 +254,7 @@ function FormModal({ open, onClose, onSave, initial, salesOrders }: {
 
   if (!open) return null;
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.销售订单id || !form.发货日期 || !form.收货人) {
       alert('请填写必填项：关联销售订单、发货日期、收货人');
       return;
@@ -262,8 +263,10 @@ function FormModal({ open, onClose, onSave, initial, salesOrders }: {
       alert('请至少选择一项产品');
       return;
     }
-    onSave(form, items);
-    onClose();
+    try {
+      await onSave(form, items);
+      onClose();
+    } catch (e: any) { alert('保存失败: ' + (e?.message || '未知错误')); }
   };
 
   return (
@@ -511,6 +514,7 @@ export default function DeliveryOrdersPage() {
         onSearch={setSearch}
         actions={[
           { label: '新建送货单', icon: '＋', variant: 'primary' as const, onClick: () => { setEditingItem({}); setModalOpen(true); } },
+          { label: '导出CSV模版', icon: '↓', variant: 'default' as const, onClick: () => exportCsvTemplate(['单号', '关联销售订单号', '客户名称', '送货日期', '送货地址', '仓库', '备注', '状态'], '送货单') },
         ]}
       />
 

@@ -6,6 +6,7 @@ import OrderTable, { Column } from '@/components/OrderTable';
 import StatusBadge, { MoneyCell } from '@/components/StatusBadge';
 import { JobReport, WorkOrder, Workstation } from '@/lib/types';
 import { JobReportRepo, WorkOrderRepo, WorkstationRepo } from '@/lib/repo';
+import { exportCsvTemplate } from '@/lib/csvExport';
 
 function generateReportNo(): string {
   const today = new Date();
@@ -65,12 +66,14 @@ function JobReportFormModal({ open, onClose, onSave, workOrders, workstations }:
   const currentWo = workOrders.find(w => w.id === form.工单id);
   const availableProcesses = currentWo?.工序列表 || [];
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.工单id || !form.工序名称) { alert('请选择工单和工序'); return; }
     if (form.报工数量 <= 0) { alert('报工数量必须大于0'); return; }
     if (form.工序单价 <= 0) { alert('请设置工序单价'); return; }
-    onSave(form as Omit<JobReport, 'id'>);
-    onClose();
+    try {
+      await onSave(form as Omit<JobReport, 'id'>);
+      onClose();
+    } catch (e: any) { alert('保存失败: ' + (e?.message || '未知错误')); }
   };
 
   return (
@@ -253,7 +256,7 @@ export default function JobReportsPage() {
   const wageColumns: Column<WageSummaryRow>[] = [
     { key: 'worker', label: '工人', sortable: true },
     { key: 'reportCount', label: '报工次数', sortable: true },
-    { key: 'totalQuantity', label: '总数量', sortable: true, render: (row: WageSummaryRow) => <span className="font-mono">{row.totalQuantity.toLocaleString()}</span> },
+    { key: 'totalQuantity', label: '总数量', sortable: true, render: (row: WageSummaryRow) => <span className="font-mono">{row.totalQuantity?.toLocaleString()}</span> },
     { key: 'totalWage', label: '计件工资合计', sortable: true, render: (row: WageSummaryRow) => <MoneyCell value={row.totalWage} className="text-green-700 font-semibold" /> },
   ];
 
@@ -262,7 +265,7 @@ export default function JobReportsPage() {
     { key: '工单号', label: '工单号', sortable: true },
     { key: '工序名称', label: '工序', sortable: true },
     { key: '执行单位', label: '执行单位' },
-    { key: '报工数量', label: '报工数量', sortable: true, render: (r: JobReport) => <span className="font-mono">{r.报工数量.toLocaleString()}</span> },
+    { key: '报工数量', label: '报工数量', sortable: true, render: (r: JobReport) => <span className="font-mono">{r.报工数量?.toLocaleString()}</span> },
     { key: '工序单价', label: '单价', render: (r: JobReport) => <MoneyCell value={r.工序单价} /> },
     { key: '计件工资', label: '工资', sortable: true, render: (r: JobReport) => <MoneyCell value={r.计件工资} className="text-green-700 font-semibold" /> },
     { key: '报工日期', label: '日期', sortable: true },
@@ -296,6 +299,7 @@ export default function JobReportsPage() {
         tabs={tabs}
         actions={viewTab === 'reports' ? [
           { label: '新建报工', icon: '＋', variant: 'primary' as const, onClick: () => setModalOpen(true) },
+          { label: '导出CSV模版', icon: '↓', variant: 'default' as const, onClick: () => exportCsvTemplate(['单号', '关联施工单号', '工序名称', '报工数量', '合格数量', '不合格数量', '报工人员', '报工日期', '生产班组', '备注'], '报工记录') },
         ] : [
           { label: '刷新汇总', icon: '↻', variant: 'default' as const, onClick: loadWageSummary },
         ]}
@@ -312,7 +316,7 @@ export default function JobReportsPage() {
           <span className="text-xs text-gray-500 ml-4">合计：</span>
           <span className="text-xs font-semibold text-green-700">¥{totalWage.toFixed(2)}</span>
           <span className="text-xs text-gray-400 ml-2">总数量：</span>
-          <span className="text-xs font-semibold">{totalQty.toLocaleString()}</span>
+          <span className="text-xs font-semibold">{totalQty?.toLocaleString()}</span>
         </div>
       )}
 

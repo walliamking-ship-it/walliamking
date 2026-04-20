@@ -127,7 +127,7 @@ export default function ArSummaryReport() {
         </div>
         <div className="flex items-center gap-3 text-xs">
           <span>共 <span className="font-semibold text-gray-800">{customersWithAr}</span> 位客户有欠款</span>
-          <span>总欠款: <span className="font-semibold text-red-600">¥{totalAr.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}</span></span>
+          <span>总欠款: <span className="font-semibold text-red-600">¥{totalAr?.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}</span></span>
         </div>
       </div>
 
@@ -148,7 +148,7 @@ export default function ArSummaryReport() {
       <div className="grid grid-cols-4 gap-4 px-5 py-4">
         <div className="bg-white rounded-lg shadow-sm border p-4">
           <div className="text-xs text-gray-500">欠款总额</div>
-          <div className="text-xl font-bold text-red-600 mt-1">¥{totalAr.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}</div>
+          <div className="text-xl font-bold text-red-600 mt-1">¥{totalAr?.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}</div>
         </div>
         <div className="bg-white rounded-lg shadow-sm border p-4">
           <div className="text-xs text-gray-500">有欠款客户</div>

@@ -6,6 +6,7 @@ import OrderTable, { Column } from '@/components/OrderTable';
 import StatusBadge, { MoneyCell, DateCell } from '@/components/StatusBadge';
 import { PaymentReceipt, SalesOrder, Customer } from '@/lib/types';
 import { PaymentReceiptRepo, SalesOrderRepo, SalesOrderItemRepo, CustomerRepo } from '@/lib/repo';
+import { exportCsvTemplate } from '@/lib/csvExport';
 
 function generateReceiptNo(): string {
   const today = new Date();
@@ -127,7 +128,7 @@ function PaymentReceiptFormModal({ open, onClose, onSave, initial, salesOrders, 
                   <span className="font-mono text-blue-600">{so.单号}</span>
                   <span className="text-gray-500">{so.客户名称}</span>
                   <span className="ml-auto text-right">
-                    <span className="text-gray-400 text-xs">欠{so.未收款项.toFixed(2)}</span>
+                    <span className="text-gray-400 text-xs">欠{parseFloat(String(so.未收款项||'0')).toFixed(2)}</span>
                   </span>
                 </label>
               ))}
@@ -244,6 +245,7 @@ export default function PaymentReceiptsPage() {
         onSearch={setSearch}
         actions={[
           { label: '新建收款单', icon: '＋', variant: 'primary' as const, onClick: () => { setEditingItem(undefined); setModalOpen(true); } },
+          { label: '导出CSV模版', icon: '↓', variant: 'default' as const, onClick: () => exportCsvTemplate(['单号', '客户名称', '关联销售订单号', '收款日期', '收款方式', '收款金额', '状态', '备注'], '收款单') },
         ]}
       />
       <div className="flex-1 overflow-auto bg-white">
