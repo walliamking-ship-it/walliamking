@@ -85,19 +85,22 @@ function DashboardContent() {
           CustomerRepo.findAll(), VendorRepo.findAll(), ProductRepo.findAll(),
           SalesOrderRepo.findAll(), PurchaseOrderRepo.findAll(), InventoryRepo.findAll(),
         ]);
-        const alerts = inventory.filter(i => (i.当前库存 || 0) < (i.安全库存 || 0)).length;
-        setStats({ customers: customers.length, vendors: vendors.length, products: products.length,
-          salesOrders: salesOrders.length, purchaseOrders: purchaseOrders.length, inventoryAlerts: alerts });
+        const safeArr = (arr: any) => Array.isArray(arr) ? arr : [];
+        const alerts = safeArr(inventory).filter((i: any) => (i.当前库存 || 0) < (i.安全库存 || 0)).length;
+        setStats({ customers: safeArr(customers).length, vendors: safeArr(vendors).length, products: safeArr(products).length,
+          salesOrders: safeArr(salesOrders).length, purchaseOrders: safeArr(purchaseOrders).length, inventoryAlerts: alerts });
 
-        const totalContract = salesOrders.reduce((s, o) => s + (o.合同金额 || 0), 0);
-        const totalReceived = salesOrders.reduce((s, o) => s + (o.已收款 || 0), 0);
-        const totalUnpaid = salesOrders.reduce((s, o) => s + (o.未收款项 || 0), 0);
+        const so = safeArr(salesOrders);
+        const totalContract = so.reduce((s: number, o: any) => s + Number(o.合同金额 || 0), 0);
+        const totalReceived = so.reduce((s: number, o: any) => s + Number(o.已收款 || 0), 0);
+        const totalUnpaid = so.reduce((s: number, o: any) => s + Number(o.未收款项 || 0), 0);
         setFinancial({ totalContract, totalReceived, totalUnpaid });
 
-        const sortedSales = [...salesOrders].sort((a, b) => (b.日期 || '').localeCompare(a.日期 || ''));
+        const sortedSales = so.sort((a: any, b: any) => (b.日期 || '').localeCompare(a.日期 || ''));
         setRecentSales(sortedSales.slice(0, 5));
 
-        const sortedPurchases = [...purchaseOrders].sort((a, b) => (b.日期 || '').localeCompare(a.日期 || ''));
+        const po = safeArr(purchaseOrders);
+        const sortedPurchases = po.sort((a: any, b: any) => (b.日期 || '').localeCompare(a.日期 || ''));
         setRecentPurchases(sortedPurchases.slice(0, 5));
       } catch (e) { console.error('Failed to load dashboard:', e); }
       finally { setLoading(false); }
@@ -220,7 +223,6 @@ function DashboardContent() {
               { href: '/vendors', label: '供应商管理', icon: '🏭', desc: '供应商信息' },
               { href: '/sales-orders', label: '销售订单', icon: '📋', desc: '销售单据管理' },
               { href: '/purchase-orders', label: '采购订单', icon: '📦', desc: '采购单据管理' },
-              { href: '/processing-orders', label: '加工单', icon: '🏭', desc: '委托加工管理' },
               { href: '/inventory', label: '库存管理', icon: '📦', desc: '库存查询盘点' },
               { href: '/products', label: '产品管理', icon: '🏷️', desc: '产品信息维护' },
               { href: '/reports', label: '报表中心', icon: '📊', desc: '经营数据分析' },
