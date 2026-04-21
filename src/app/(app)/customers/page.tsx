@@ -110,7 +110,7 @@ function FormModal({ open, onClose, onSave, initial, existingCustomers }: {
       if (initial?.id) {
         setForm(initial);
       } else {
-        setForm({ 客户编号: generateCustomerCode(existingCustomers), 客户名称: '', contact: '', phone: '', address: '', remark: '', taxNumber: '', bankAccount: '', bankCode: '', bankName: '' });
+        setForm({ 客户编号: generateCustomerCode(existingCustomers), 客户名称: '', 联系人: '', 电话: '', 地址: '', 备注: '', 税号: '', 银行帐号: '', 开户行号: '', 开户行名称: '' });
       }
     } else if (open && initial?.id) {
       // Editing existing item - update form

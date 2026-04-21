@@ -107,7 +107,7 @@ function FormModal({ open, onClose, onSave, initial, existingVendors }: {
       if (initial?.id) {
         setForm(initial);
       } else {
-        setForm({ 供应商编号: generateVendorCode(existingVendors), 供应商名称: '', contact: '', phone: '', address: '', remark: '', taxNumber: '', bankAccount: '', bankCode: '', bankName: '' });
+        setForm({ 供应商编号: generateVendorCode(existingVendors), 供应商名称: '', 联系人: '', 电话: '', 地址: '', 备注: '', 税号: '', 银行帐号: '', 开户行号: '', 开户行名称: '' });
       }
     } else if (open && initial?.id) {
       setForm(initial);
