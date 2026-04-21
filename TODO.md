@@ -22,3 +22,23 @@
 
 - [x] 创建 `usePermission` Hook - `src/hooks/usePermission.ts`
 - [x] 扩展 CrudTable 权限检查 - 支持 create/edit/delete/export 控制
+
+## [2026-04-21] 发票到期提醒 ✅ 完成
+
+- [x] 创建 `src/lib/invoiceReminder.ts` - 发票逾期检查逻辑
+- [x] 创建 `/api/invoices/reminders` API - 返回逾期汇总
+- [x] 创建 `/invoices/reminders` 页面 - 可视化逾期情况
+- [x] 支持按客户/供应商汇总逾期金额
+- [x] 支持按严重程度分级（正常/即将到期/已逾期/严重逾期）
+
+## [2026-04-21] 三单匹配验证 ✅ 完成
+
+- [x] 创建 `src/lib/threeWayMatch.ts` - 采购三单匹配验证
+- [x] 支持订单金额/收货金额/发票金额三方验证
+- [x] 提供匹配状态：matched/partial/over
+
+## [2026-04-21] BOM物料清单 ✅ 完成
+
+- [x] 创建 `src/lib/bom.ts` - BOM物料清单模块
+- [x] 支持物料需求计算（含损耗率）
+- [x] 支持库存缺口计算

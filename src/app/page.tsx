@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
 import { CustomerRepo, VendorRepo, ProductRepo, SalesOrderRepo, PurchaseOrderRepo, InventoryRepo } from '@/lib/repo';
+import Link from 'next/link';
 
 function StatCard({ label, value, color, href, sub }: { label: string; value: number; color: string; href: string; sub?: string }) {
   return (
@@ -77,6 +78,7 @@ function DashboardContent() {
   const [recentSales, setRecentSales] = useState<any[]>([]);
   const [recentPurchases, setRecentPurchases] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [invoiceAlerts, setInvoiceAlerts] = useState<{overdue: number, dueSoon: number}>({ overdue: 0, dueSoon: 0 });
 
   useEffect(() => {
     async function load() {
@@ -102,6 +104,19 @@ function DashboardContent() {
         const po = safeArr(purchaseOrders);
         const sortedPurchases = po.sort((a: any, b: any) => (b.日期 || '').localeCompare(a.日期 || ''));
         setRecentPurchases(sortedPurchases.slice(0, 5));
+
+        // 获取发票逾期提醒
+        try {
+          const reminderRes = await fetch('/api/invoices/reminders');
+          const reminderData = await reminderRes.json();
+          if (reminderData.code === 0) {
+            const summary = reminderData.data.summary;
+            setInvoiceAlerts({
+              overdue: summary.totalOverdueCount,
+              dueSoon: summary.totalDueSoonCount,
+            });
+          }
+        } catch (e) { console.error('Failed to load invoice reminders:', e); }
       } catch (e) { console.error('Failed to load dashboard:', e); }
       finally { setLoading(false); }
     }
@@ -141,6 +156,41 @@ function DashboardContent() {
             <MoneyCard label="未收款" value={financial.totalUnpaid} color={financial.totalUnpaid > 0 ? 'text-red-600' : 'text-green-600'} />
           </div>
         </div>
+
+        {/* 发票到期提醒 */}
+        {(invoiceAlerts.overdue > 0 || invoiceAlerts.dueSoon > 0) && (
+          <div>
+            <div className="text-xs text-gray-500 uppercase tracking-wider mb-3">🚨 发票到期提醒</div>
+            <div className="grid grid-cols-2 gap-3">
+              {invoiceAlerts.overdue > 0 && (
+                <Link href="/invoices/reminders">
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4 hover:bg-red-100 transition-colors cursor-pointer">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-red-600 text-2xl font-bold">{invoiceAlerts.overdue}</div>
+                        <div className="text-red-500 text-sm">张发票已逾期</div>
+                      </div>
+                      <span className="text-red-400 text-2xl">⚠️</span>
+                    </div>
+                  </div>
+                </Link>
+              )}
+              {invoiceAlerts.dueSoon > 0 && (
+                <Link href="/invoices/reminders">
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 hover:bg-yellow-100 transition-colors cursor-pointer">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-yellow-600 text-2xl font-bold">{invoiceAlerts.dueSoon}</div>
+                        <div className="text-yellow-500 text-sm">张发票即将到期</div>
+                      </div>
+                      <span className="text-yellow-400 text-2xl">⏰</span>
+                    </div>
+                  </div>
+                </Link>
+              )}
+            </div>
+          </div>
+        )
 
         {/* 数据概览 */}
         <div>

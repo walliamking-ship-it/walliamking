@@ -39,6 +39,7 @@ const NAV_GROUPS: NavGroup[] = [
     icon: '💰',
     items: [
       { href: '/invoices', label: '发票', icon: '🧾' },
+      { href: '/invoices/reminders', label: '到期提醒', icon: '⏰' },
       { href: '/payment-receipts', label: '收款单', icon: '💰' },
       { href: '/payment-mades', label: '付款单', icon: '💸' },
       { href: '/bills', label: '账单管理', icon: '📑' },
