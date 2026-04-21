@@ -82,10 +82,15 @@ function DashboardContent() {
 
   useEffect(() => {
     async function load() {
+      setLoading(true);
       try {
         const [customers, vendors, products, salesOrders, purchaseOrders, inventory] = await Promise.all([
-          CustomerRepo.findAll(), VendorRepo.findAll(), ProductRepo.findAll(),
-          SalesOrderRepo.findAll(), PurchaseOrderRepo.findAll(), InventoryRepo.findAll(),
+          CustomerRepo.findAll().catch(() => []), 
+          VendorRepo.findAll().catch(() => []), 
+          ProductRepo.findAll().catch(() => []),
+          SalesOrderRepo.findAll().catch(() => []), 
+          PurchaseOrderRepo.findAll().catch(() => []), 
+          InventoryRepo.findAll().catch(() => []),
         ]);
         const safeArr = (arr: any) => Array.isArray(arr) ? arr : [];
         const alerts = safeArr(inventory).filter((i: any) => (i.当前库存 || 0) < (i.安全库存 || 0)).length;

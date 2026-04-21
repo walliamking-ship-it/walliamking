@@ -163,8 +163,15 @@ export default function CustomersPage() {
 
   const loadData = async () => {
     setLoading(true);
-    try { setData(await CustomerRepo.findAll()); }
-    finally { setLoading(false); }
+    try { 
+      const result = await CustomerRepo.findAll();
+      setData(Array.isArray(result) ? result : []);
+    } catch (e) {
+      console.error('Failed to load customers:', e);
+      setData([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { loadData(); }, []);

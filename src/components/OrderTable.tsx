@@ -71,9 +71,9 @@ export default function OrderTable<T extends { id: string }>({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-16 text-gray-400">
-        <span className="text-2xl mr-3 animate-spin">⟳</span>
-        <span>加载中...</span>
+      <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+        <span className="text-3xl mr-3 animate-spin">⟳</span>
+        <span className="mt-2 text-sm">加载中...</span>
       </div>
     );
   }
