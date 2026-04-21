@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
 import { CustomerRepo, VendorRepo, ProductRepo, SalesOrderRepo, PurchaseOrderRepo, InventoryRepo } from '@/lib/repo';
-import Link from 'next/link';
 
 function StatCard({ label, value, color, href, sub }: { label: string; value: number; color: string; href: string; sub?: string }) {
   return (
@@ -78,18 +77,18 @@ function DashboardContent() {
   const [recentSales, setRecentSales] = useState<any[]>([]);
   const [recentPurchases, setRecentPurchases] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [invoiceAlerts, setInvoiceAlerts] = useState<{overdue: number, dueSoon: number}>({ overdue: 0, dueSoon: 0 });
+  const [invoiceAlerts, setInvoiceAlerts] = useState({ overdue: 0, dueSoon: 0 });
 
   useEffect(() => {
     async function load() {
       setLoading(true);
       try {
         const [customers, vendors, products, salesOrders, purchaseOrders, inventory] = await Promise.all([
-          CustomerRepo.findAll().catch(() => []), 
-          VendorRepo.findAll().catch(() => []), 
+          CustomerRepo.findAll().catch(() => []),
+          VendorRepo.findAll().catch(() => []),
           ProductRepo.findAll().catch(() => []),
-          SalesOrderRepo.findAll().catch(() => []), 
-          PurchaseOrderRepo.findAll().catch(() => []), 
+          SalesOrderRepo.findAll().catch(() => []),
+          PurchaseOrderRepo.findAll().catch(() => []),
           InventoryRepo.findAll().catch(() => []),
         ]);
         const safeArr = (arr: any) => Array.isArray(arr) ? arr : [];
@@ -110,16 +109,13 @@ function DashboardContent() {
         const sortedPurchases = po.sort((a: any, b: any) => (b.日期 || '').localeCompare(a.日期 || ''));
         setRecentPurchases(sortedPurchases.slice(0, 5));
 
-        // 获取发票逾期提醒
+        // Invoice overdue reminders
         try {
           const reminderRes = await fetch('/api/invoices/reminders');
           const reminderData = await reminderRes.json();
           if (reminderData.code === 0) {
             const summary = reminderData.data.summary;
-            setInvoiceAlerts({
-              overdue: summary.totalOverdueCount,
-              dueSoon: summary.totalDueSoonCount,
-            });
+            setInvoiceAlerts({ overdue: summary.totalOverdueCount, dueSoon: summary.totalDueSoonCount });
           }
         } catch (e) { console.error('Failed to load invoice reminders:', e); }
       } catch (e) { console.error('Failed to load dashboard:', e); }
@@ -137,9 +133,27 @@ function DashboardContent() {
         <h1 className="text-lg font-semibold text-gray-900">工作台</h1>
         <p className="text-xs text-gray-500 mt-0.5">上海申竭诚包装 · {dateStr}</p>
       </div>
-
       <div className="p-6 space-y-6">
-        {/* 快捷入口 */}
+        {/* Invoice Alerts */}
+        {(invoiceAlerts.overdue > 0 || invoiceAlerts.dueSoon > 0) && (
+          <Link href="/invoices/reminders">
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 hover:bg-yellow-100 transition-colors cursor-pointer">
+              <div className="flex items-center gap-3">
+                <span className="text-yellow-400 text-2xl">⏰</span>
+                <div>
+                  <div className="text-sm font-medium text-yellow-800">
+                    {invoiceAlerts.overdue > 0 && `${invoiceAlerts.overdue} 张发票已逾期`}
+                    {invoiceAlerts.overdue > 0 && invoiceAlerts.dueSoon > 0 && '，'}
+                    {invoiceAlerts.dueSoon > 0 && `${invoiceAlerts.dueSoon} 张即将到期`}
+                  </div>
+                  <div className="text-xs text-yellow-600 mt-0.5">点击查看详情 →</div>
+                </div>
+              </div>
+            </div>
+          </Link>
+        )}
+
+        {/* Quick Actions */}
         <div>
           <div className="text-xs text-gray-500 uppercase tracking-wider mb-3">快捷入口</div>
           <div className="flex flex-wrap gap-2">
@@ -148,56 +162,20 @@ function DashboardContent() {
             <QuickAction label="客户管理" href="/customers" icon="👥" />
             <QuickAction label="产品管理" href="/products" icon="🏷️" />
             <QuickAction label="库存查看" href="/inventory" icon="📦" />
-            <QuickAction label="报表中心" href="/reports" icon="📊" />
           </div>
         </div>
 
-        {/* 财务汇总 */}
+        {/* Financial Summary */}
         <div>
           <div className="text-xs text-gray-500 uppercase tracking-wider mb-3">销售财务汇总</div>
           <div className="grid grid-cols-3 gap-3">
-            <MoneyCard label="合同总额" value={financial.totalContract} color="text-gray-800" />
-            <MoneyCard label="已收款" value={financial.totalReceived} color="text-green-600" />
-            <MoneyCard label="未收款" value={financial.totalUnpaid} color={financial.totalUnpaid > 0 ? 'text-red-600' : 'text-green-600'} />
+            <MoneyCard label="合同总额" value={financial.totalContract} color="text-gray-900" />
+            <MoneyCard label="已收金额" value={financial.totalReceived} color="text-green-600" />
+            <MoneyCard label="未收金额" value={financial.totalUnpaid} color="text-red-600" />
           </div>
         </div>
 
-        {/* 发票到期提醒 */}
-        {(invoiceAlerts.overdue > 0 || invoiceAlerts.dueSoon > 0) && (
-          <div>
-            <div className="text-xs text-gray-500 uppercase tracking-wider mb-3">🚨 发票到期提醒</div>
-            <div className="grid grid-cols-2 gap-3">
-              {invoiceAlerts.overdue > 0 && (
-                <Link href="/invoices/reminders">
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-4 hover:bg-red-100 transition-colors cursor-pointer">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-red-600 text-2xl font-bold">{invoiceAlerts.overdue}</div>
-                        <div className="text-red-500 text-sm">张发票已逾期</div>
-                      </div>
-                      <span className="text-red-400 text-2xl">⚠️</span>
-                    </div>
-                  </div>
-                </Link>
-              )}
-              {invoiceAlerts.dueSoon > 0 && (
-                <Link href="/invoices/reminders">
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 hover:bg-yellow-100 transition-colors cursor-pointer">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-yellow-600 text-2xl font-bold">{invoiceAlerts.dueSoon}</div>
-                        <div className="text-yellow-500 text-sm">张发票即将到期</div>
-                      </div>
-                      <span className="text-yellow-400 text-2xl">⏰</span>
-                    </div>
-                  </div>
-                </Link>
-              )}
-            </div>
-          </div>
-        )
-
-        {/* 数据概览 */}
+        {/* Data Overview */}
         <div>
           <div className="text-xs text-gray-500 uppercase tracking-wider mb-3">数据概览</div>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -210,66 +188,69 @@ function DashboardContent() {
           </div>
         </div>
 
-        {/* 最近订单 */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <div className="text-xs text-gray-500 uppercase tracking-wider">最近销售订单</div>
-              <Link href="/sales-orders" className="text-xs text-blue-600 hover:underline">查看全部 →</Link>
-            </div>
-            <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
-              {loading ? (
-                <div className="p-8 text-center text-gray-400 text-sm">加载中...</div>
-              ) : recentSales.length === 0 ? (
-                <div className="p-8 text-center text-gray-400 text-sm">暂无销售订单 · <Link href="/sales-orders" className="text-blue-600 hover:underline">去新建</Link></div>
-              ) : (
-                <table className="w-full">
-                  <thead className="bg-gray-50 border-b border-gray-100">
-                    <tr>
-                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">单号</th>
-                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">客户</th>
-                      <th className="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase">金额</th>
-                      <th className="px-4 py-2 text-center text-xs font-semibold text-gray-500 uppercase">收款</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {recentSales.map(order => <OrderRow key={order.id} order={order} type="sales" />)}
-                  </tbody>
-                </table>
-              )}
-            </div>
+        {/* Recent Sales */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-xs text-gray-500 uppercase tracking-wider">最近销售订单</div>
+            <Link href="/sales-orders" className="text-xs text-blue-600 hover:underline">查看全部 →</Link>
           </div>
-
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <div className="text-xs text-gray-500 uppercase tracking-wider">最近采购订单</div>
-              <Link href="/purchase-orders" className="text-xs text-blue-600 hover:underline">查看全部 →</Link>
-            </div>
-            <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
-              {loading ? (
-                <div className="p-8 text-center text-gray-400 text-sm">加载中...</div>
-              ) : recentPurchases.length === 0 ? (
-                <div className="p-8 text-center text-gray-400 text-sm">暂无采购订单 · <Link href="/purchase-orders" className="text-blue-600 hover:underline">去新建</Link></div>
-              ) : (
-                <table className="w-full">
-                  <thead className="bg-gray-50 border-b border-gray-100">
-                    <tr>
-                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">单号</th>
-                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">供应商</th>
-                      <th className="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase">金额</th>
-                      <th className="px-4 py-2 text-center text-xs font-semibold text-gray-500 uppercase">付款</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {recentPurchases.map(order => <OrderRow key={order.id} order={order} type="purchase" />)}
-                  </tbody>
-                </table>
-              )}
-            </div>
+          <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+            {loading ? (
+              <div className="p-8 text-center text-gray-400 text-sm">加载中...</div>
+            ) : recentSales.length === 0 ? (
+              <div className="p-8 text-center text-gray-400 text-sm">暂无销售订单 · <Link href="/sales-orders" className="text-blue-600 hover:underline">去新建</Link></div>
+            ) : (
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b border-gray-100">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">单号</th>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">客户</th>
+                    <th className="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase">合同金额</th>
+                    <th className="px-4 py-2 text-center text-xs font-semibold text-gray-500 uppercase">收款状态</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recentSales.map((order, i) => (
+                    <OrderRow key={order.id} order={order} type="sales" />
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
 
-        {/* 功能模块 */}
+        {/* Recent Purchases */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-xs text-gray-500 uppercase tracking-wider">最近采购订单</div>
+            <Link href="/purchase-orders" className="text-xs text-blue-600 hover:underline">查看全部 →</Link>
+          </div>
+          <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+            {loading ? (
+              <div className="p-8 text-center text-gray-400 text-sm">加载中...</div>
+            ) : recentPurchases.length === 0 ? (
+              <div className="p-8 text-center text-gray-400 text-sm">暂无采购订单 · <Link href="/purchase-orders" className="text-blue-600 hover:underline">去新建</Link></div>
+            ) : (
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b border-gray-100">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">单号</th>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">供应商</th>
+                    <th className="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase">合同金额</th>
+                    <th className="px-4 py-2 text-center text-xs font-semibold text-gray-500 uppercase">付款状态</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recentPurchases.map((order, i) => (
+                    <OrderRow key={order.id} order={order} type="purchase" />
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+
+        {/* Feature Modules */}
         <div>
           <div className="text-xs text-gray-500 uppercase tracking-wider mb-3">功能模块</div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -278,9 +259,10 @@ function DashboardContent() {
               { href: '/vendors', label: '供应商管理', icon: '🏭', desc: '供应商信息' },
               { href: '/sales-orders', label: '销售订单', icon: '📋', desc: '销售单据管理' },
               { href: '/purchase-orders', label: '采购订单', icon: '📦', desc: '采购单据管理' },
+              { href: '/processing-orders', label: '加工单', icon: '🏭', desc: '委托加工管理' },
               { href: '/inventory', label: '库存管理', icon: '📦', desc: '库存查询盘点' },
               { href: '/products', label: '产品管理', icon: '🏷️', desc: '产品信息维护' },
-              { href: '/reports', label: '报表中心', icon: '📊', desc: '经营数据分析' },
+              { href: '/processes', label: '工艺工序', icon: '⚙️', desc: '生产工艺设置' },
             ].map(mod => (
               <Link key={mod.href} href={mod.href}>
                 <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 hover:shadow-md hover:border-blue-200 transition-all cursor-pointer">
