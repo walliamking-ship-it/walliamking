@@ -25,12 +25,20 @@ interface CrudTableProps<T extends { id: string }> {
   searchKeys?: (keyof T)[];
   /** 导出CSV的表头标签（不含操作列） */
   exportHeaders?: { key: keyof T; label: string }[];
+  /** 权限检查（不传则不检查） */
+  permissions?: {
+    create?: boolean;
+    edit?: boolean;
+    delete?: boolean;
+    export?: boolean;
+  };
 }
 
 export function CrudTable<T extends { id: string }>({
   title, columns, data, onAdd, onEdit, onDelete,
   formFields, emptyMessage = '暂无数据',
   searchKeys, exportHeaders,
+  permissions,
 }: CrudTableProps<T>) {
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -136,16 +144,24 @@ export function CrudTable<T extends { id: string }>({
       <div className="flex justify-between items-center mb-4 flex-wrap gap-3">
         <h1 className="text-2xl font-bold">{title}</h1>
         <div className="flex gap-2 items-center flex-wrap">
-          <button onClick={handleExport} className="bg-green-600 text-white px-3 py-1.5 rounded text-sm hover:bg-green-700">
-            📥 导出
-          </button>
-          <button onClick={() => fileRef.current?.click()} disabled={importing} className="bg-yellow-500 text-white px-3 py-1.5 rounded text-sm hover:bg-yellow-600 disabled:opacity-50">
-            {importing ? '导入中…' : '📤 导入'}
-          </button>
-          <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={handleImport} />
-          <button onClick={openAdd} className="bg-blue-600 text-white px-4 py-1.5 rounded text-sm hover:bg-blue-700">
-            + 新增
-          </button>
+          {permissions?.export !== false && (
+            <button onClick={handleExport} className="bg-green-600 text-white px-3 py-1.5 rounded text-sm hover:bg-green-700">
+              📥 导出
+            </button>
+          )}
+          {permissions?.create !== false && (
+            <>
+              <button onClick={() => fileRef.current?.click()} disabled={importing} className="bg-yellow-500 text-white px-3 py-1.5 rounded text-sm hover:bg-yellow-600 disabled:opacity-50">
+                {importing ? '导入中…' : '📤 导入'}
+              </button>
+              <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={handleImport} />
+            </>
+          )}
+          {permissions?.create !== false && (
+            <button onClick={openAdd} className="bg-blue-600 text-white px-4 py-1.5 rounded text-sm hover:bg-blue-700">
+              + 新增
+            </button>
+          )}
         </div>
       </div>
 
@@ -189,12 +205,16 @@ export function CrudTable<T extends { id: string }>({
                     <td key={String(col.key)} className="px-4 py-3 text-sm text-gray-800">
                       {col.key === 'actions' ? (
                         <div className="flex gap-2">
-                          <button onClick={() => openEdit(item)} className="text-blue-600 hover:underline text-sm">编辑</button>
-                          <button onClick={async () => {
-                            if (confirm('确认删除？')) {
-                              await onDelete(item.id);
-                            }
-                          }} className="text-red-600 hover:underline text-sm">删除</button>
+                          {permissions?.edit !== false && (
+                            <button onClick={() => openEdit(item)} className="text-blue-600 hover:underline text-sm">编辑</button>
+                          )}
+                          {permissions?.delete !== false && (
+                            <button onClick={async () => {
+                              if (confirm('确认删除？')) {
+                                await onDelete(item.id);
+                              }
+                            }} className="text-red-600 hover:underline text-sm">删除</button>
+                          )}
                         </div>
                       ) : col.render ? (
                         col.render(item)
