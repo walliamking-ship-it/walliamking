@@ -196,7 +196,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       id: r.record_id,
       ...(needConvert ? cnToEn(r.fields, tableId) : r.fields)
     }));
-    return NextResponse.json({ code: 0, data: items });
+
+    // 添加缓存头，允许浏览器缓存5分钟
+    const response = NextResponse.json({ code: 0, data: items });
+    response.headers.set('Cache-Control', 'private, max-age=300');
+    return response;
   } catch (e: any) {
     return NextResponse.json({ code: 500, msg: e.message });
   }
